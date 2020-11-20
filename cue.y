@@ -3,13 +3,21 @@
 #include <libc.h>
 
 #include "cuefs.h"
+
+/*
+ * FIXME find a way to "fix" the grammar so that it
+ * doesn't do right-hand recursion (and overflow the
+ * stack) instead of just growing it and pretending
+ * it's not a problem
+ */
+#define YYMAXDEPTH 8192
 %}
 
 %union
 {
-	int i;
-	char *str;
 	Timestamp time;
+	char *str;
+	int i;
 }
 
 %token <i>   INTEGER

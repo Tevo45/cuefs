@@ -6,6 +6,9 @@ LFILES=\
 YFILES=\
 	cue.y
 
+HDR=\
+	cuefs.h
+
 OBJ=\
 	lex.yy.$O	\
 	y.tab.$O	\
@@ -14,8 +17,10 @@ OBJ=\
 	cue.$O		\
 	fs.$O
 
-%.$O: %.c
-	$CC $CFLAGS $prereq
+CFLAGS=$CFLAGS
+
+%.$O: %.c $HDR
+	$CC $CFLAGS $stem.c
 
 $O.out: $OBJ
 	$LD $prereq
@@ -23,7 +28,7 @@ $O.out: $OBJ
 lex.yy.c: $LFILES y.tab.h
 	$LEX -9 $LFILES
 
-y.tab.c y.tab.h: $YFILES
+y.tab.c y.tab.h: $YFILES mkfile
 	$YACC -d $YFILES
 
 clean nuke:V:

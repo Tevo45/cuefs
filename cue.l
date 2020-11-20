@@ -47,5 +47,5 @@
 [:\n]			return *yytext;
 
 "REM".*\n		;
-[ \t]+			;
+[ \t\r]+		;
 %%

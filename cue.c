@@ -113,7 +113,7 @@ addnewtrack(Cuesheet *c, int i)
 	if(c->entries == nil)
 		c->entries = new;
 	else
-		c->curentry->next = nil;
+		c->curentry->next = new;
 
 	c->curentry = new;
 }

@@ -45,10 +45,9 @@ typedef struct
 typedef struct Entry
 {
 	Timestamps;
-	int index;
 	AFile *file;
+	int index;
 	char *title, *performer;
-	Timestamp start;
 	struct Entry *next;
 } Entry;
 
