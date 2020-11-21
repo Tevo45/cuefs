@@ -6,10 +6,10 @@ LFILES=\
 YFILES=\
 	cue.y
 
-HDR=\
+HFILES=\
 	cuefs.h
 
-OBJ=\
+OFILES=\
 	lex.yy.$O	\
 	y.tab.$O	\
 	main.$O		\
@@ -17,19 +17,6 @@ OBJ=\
 	cue.$O		\
 	fs.$O
 
-CFLAGS=$CFLAGS
+LFLAGS=-9
 
-%.$O: %.c $HDR
-	$CC $CFLAGS $stem.c
-
-$O.out: $OBJ
-	$LD $prereq
-
-lex.yy.c: $LFILES y.tab.h
-	$LEX -9 $LFILES
-
-y.tab.c y.tab.h: $YFILES mkfile
-	$YACC -d $YFILES
-
-clean nuke:V:
-	rm -f lex.yy.c y.debug y.tab.[ch] *.[$OS] [$OS].*
+</sys/src/cmd/mkone
