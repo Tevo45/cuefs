@@ -19,6 +19,43 @@ newsheet(void)
 	return emallocz(sizeof(Cuesheet), 1);
 }
 
+void
+maybefree(void *s, void *p)
+{
+	if(p != nil && p != s)
+		free(p);
+}
+
+void
+recfreeentries(Cuesheet *s, Entry *cur)
+{
+	if(cur == nil)
+		return;
+	recfreeentries(s, cur->next);
+	maybefree(nil, cur->starts);
+	/* file should get freed by the cuesheet */
+	maybefree(nil, cur->title);
+	maybefree(s->performer, cur->performer);
+}
+
+void
+recfreefiles(Cuesheet *s, AFile *cur)
+{
+	if(cur == nil)
+		return;
+	recfreefiles(s, cur->next);
+	maybefree(nil, cur->name);
+}
+
+void
+freesheet(Cuesheet *s)
+{
+	recfreeentries(s, s->entries);
+	recfreefiles(s, s->files);
+	maybefree(nil, s->title);
+	maybefree(nil, s->performer);
+}
+
 AFile*
 lastfile(Cuesheet *c)
 {
@@ -126,4 +163,21 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 
 	atleast(c->curentry, i);
 	c->curentry->starts[i] = t;
+}
+
+char*
+formatext(AFile *f)
+{
+	char *tab[] =
+	{
+		[MP3]		= "mp3",
+		[AIFF]		= "aiff",
+		[BINARY]	= "pcm",
+		[MOTOROLA]	= ""		/* not sure */
+	};
+
+	if(f->type != WAVE)
+		return tab[f->type];
+
+	return "wav";	/* FIXME */
 }

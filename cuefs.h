@@ -63,9 +63,14 @@ extern Cuesheet *cursheet;
 Timestamp parsetime(int, int, int);
 
 Cuesheet* newsheet(void);
+void freesheet(Cuesheet*);
 
 void setperformer(Cuesheet*, char*);
 void settitle(Cuesheet*, char*);
 void addfile(Cuesheet*, char*, int);
 void addnewtrack(Cuesheet*, int);
 void settimestamp(Cuesheet*, int, Timestamp);
+
+char* formatext(AFile*);
+
+void cuefsinit(Cuesheet*, char*);
