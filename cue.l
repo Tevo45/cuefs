@@ -5,7 +5,7 @@
 %}
 
 %%
-\".*\"		{
+\".*\"			{
 					yylval.str = strdup(yytext+1);
 
 					if(yylval.str[yyleng-2] != '"')

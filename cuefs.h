@@ -13,6 +13,7 @@ void* emallocz(ulong, int);
 void* emalloc(ulong);
 
 char* setstr(char*, char**, char*);
+char* strreplace(char*, char, char);
 
 void parserwarn(char*, ...);
 void parserfatal(char*, ...);
@@ -21,7 +22,9 @@ void parserfatal(char*, ...);
 
 enum
 {
-	WAVE, MP3, AIFF, BINARY, MOTOROLA
+	WAVE, MP3, AIFF, BINARY, MOTOROLA,
+	/**/
+	FLAC, UNKNOWN
 };
 
 typedef struct
@@ -31,15 +34,15 @@ typedef struct
 
 typedef struct AFile
 {
-	char *name;
-	int type;
+	int type, actual, fd;
 	struct AFile *next;
+	char *name;
 } AFile;
 
 typedef struct
 {
-	u8int maxindex;
 	Timestamp *starts;
+	u8int maxindex;
 } Timestamps;
 
 typedef struct Entry
@@ -61,6 +64,7 @@ typedef struct
 extern Cuesheet *cursheet;
 
 Timestamp parsetime(int, int, int);
+double t2sec(Timestamp);
 
 Cuesheet* newsheet(void);
 void freesheet(Cuesheet*);
@@ -72,5 +76,9 @@ void addnewtrack(Cuesheet*, int);
 void settimestamp(Cuesheet*, int, Timestamp);
 
 char* formatext(AFile*);
+int actualformat(AFile*);
+
+static char *Estub = "not yet";
+static char *Eunsupported = "unsupported format";
 
 void cuefsinit(Cuesheet*, char*);

@@ -35,7 +35,8 @@ main(int argc, char **argv)
 	if(argc == 1)
 	{
 		fname = argv[0];
-		infd = open(fname, OREAD);
+		if((infd = open(fname, OREAD)) < 0)
+			sysfatal("open: %r");
 	}
 
 	cursheet = newsheet();

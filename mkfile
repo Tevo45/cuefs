@@ -7,7 +7,8 @@ YFILES=\
 	cue.y
 
 HFILES=\
-	cuefs.h
+	cuefs.h		\
+	y.tab.h
 
 OFILES=\
 	lex.yy.$O	\
@@ -17,6 +18,6 @@ OFILES=\
 	cue.$O		\
 	fs.$O
 
-LFLAGS=-9
-
 </sys/src/cmd/mkone
+
+LFLAGS=-9

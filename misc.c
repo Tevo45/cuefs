@@ -50,6 +50,15 @@ setstr(char *baseline, char **dest, char *str)
 	return str;
 }
 
+char*
+strreplace(char *str, char a, char b)
+{
+	for(char *c = str; *c != 0; c++)
+		if(*c == a)
+			*c = b;
+	return str;
+}
+
 void
 parserwarn(char *fmt, ...)
 {

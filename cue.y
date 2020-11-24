@@ -4,6 +4,8 @@
 
 #include "cuefs.h"
 
+Cuesheet *cursheet;
+
 /*
  * FIXME find a way to "fix" the grammar so that it
  * doesn't do right-hand recursion (and overflow the

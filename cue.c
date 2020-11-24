@@ -13,6 +13,12 @@ parsetime(int min, int sec, int frames)
 	return (Timestamp){frames};
 }
 
+double
+t2sec(Timestamp t)
+{
+	return (double)t.frames/75.0;
+}
+
 Cuesheet*
 newsheet(void)
 {
@@ -45,6 +51,8 @@ recfreefiles(Cuesheet *s, AFile *cur)
 		return;
 	recfreefiles(s, cur->next);
 	maybefree(nil, cur->name);
+	if(cur->fd >= 0)
+		close(cur->fd);
 }
 
 void
@@ -123,9 +131,11 @@ addfile(Cuesheet *c, char *name, int format)
 	lastfile(c);
 
 	new = emalloc(sizeof(*new));
-	new->name = strdup(name);
-	new->type = format;
-	new->next = nil;
+	new->name	= strdup(name);
+	new->type	= format;
+	new->actual	= actualformat(new);
+	new->next	= nil;
+	new->fd		= -1;
 
 	if(c->files == nil)
 		c->files = new;
@@ -166,18 +176,48 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 }
 
 char*
+extension(char *f)
+{
+	char *ext = "";
+
+	for(char *c = f; *c != 0; c++)
+		if(*c == '.')
+			ext = c+1;
+
+	return ext;
+}
+
+int
+actualformat(AFile *f)
+{
+	char *ext;
+
+	if(f->type != WAVE)
+		return f->type;
+
+	ext = extension(f->name);
+
+	if(strcmp(ext, "wav") == 0)
+		return WAVE;
+	if(strcmp(ext, "flac") == 0 || strcmp(ext, "fla") == 0)
+		return FLAC;
+
+	return UNKNOWN;
+}
+
+char*
 formatext(AFile *f)
 {
 	char *tab[] =
 	{
 		[MP3]		= "mp3",
 		[AIFF]		= "aiff",
-		[BINARY]	= "pcm",
+		[BINARY]	= "bin",
 		[MOTOROLA]	= ""		/* not sure */
 	};
 
 	if(f->type != WAVE)
 		return tab[f->type];
 
-	return "wav";	/* FIXME */
+	return extension(f->name);
 }
