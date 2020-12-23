@@ -6,12 +6,7 @@
 
 Cuesheet *cursheet;
 
-/*
- * FIXME find a way to "fix" the grammar so that it
- * doesn't do right-hand recursion (and overflow the
- * stack) instead of just growing it and pretending
- * it's not a problem
- */
+/* maybe it doesn't matter */
 #define YYMAXDEPTH 8192
 %}
 

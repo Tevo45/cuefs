@@ -12,6 +12,12 @@ typedef struct
 	int outfmt;
 } Fsprops;
 
+typedef struct
+{
+	int fd, pid;
+	vlong curoff;
+} Decoder;
+
 void pcmserve(Entry*, Req*);
 
 void (*servefmt[])(Entry*, Req*) =
@@ -29,9 +35,10 @@ char *decoder[] =
 	[WAVE]	= "audio/wavdec"
 };
 
-int
-pipedec(AFile *f, double sec)
+Decoder*
+pipedec(AFile *f, double sec, vlong off)
 {
+	Decoder *ret;
 	int fd[2], afd;
 	char *dec;
 
@@ -42,7 +49,11 @@ pipedec(AFile *f, double sec)
 	if(pipe(fd) < 0)
 		sysfatal("pipedec: can't decode: pipe: %r");
 
-	switch(rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
+	ret = emalloc(sizeof(*ret));
+	ret->fd = fd[0];
+	ret->curoff = off;
+
+	switch(ret->pid = rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
 	{
 	case 0:
 		if((afd = open(f->name, OREAD)) < 0)
@@ -72,21 +83,56 @@ pipedec(AFile *f, double sec)
 		sysfatal("pipedec: can't decode: rfork: %r");
 	}
 	close(fd[1]);
-	return fd[0];
+	return ret;
+}
+
+void
+closedec(Decoder *dec)
+{
+	char *path;
+	int fd;
+
+	if(dec == nil)
+		return;
+
+	close(dec->fd);
+
+	if((path = smprint("/proc/%d/notepg", dec->pid)) == nil)
+		sysfatal("smprint: %r");
+	if((fd = open(path, OWRITE)) < 0)
+		sysfatal("open: %r");
+	write(fd, "kill", strlen("kill"));
+	close(fd);
+
+	free(dec);
+}
+
+long
+readdec(Decoder *dec, void *buf, long count)
+{
+	long ret;
+
+	ret = read(dec->fd, buf, count);
+	dec->curoff += ret;
+
+	return ret;
 }
 
 void
 pcmserve(Entry *e, Req *r)
 {
+	Decoder *dec;
 	double sec;
-	int dec;
 
-	sec  = t2sec(e->starts[0]);
-	sec += of2sec(44100, 16, 2, r->ifcall.offset);
+	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, r->ifcall.offset);
 
-	dec = pipedec(e->file, sec);
-	r->ofcall.count = read(dec, r->ofcall.data, r->ifcall.count);
-	close(dec);
+	if((dec = r->fid->aux) == nil || dec->curoff != r->ifcall.offset)
+	{
+		closedec(dec);
+		dec = r->fid->aux = pipedec(e->file, sec, r->ifcall.offset);
+	}
+
+	r->ofcall.count = readdec(dec, r->ofcall.data, r->ifcall.count);
 	respond(r, nil);
 }
 
@@ -94,6 +140,13 @@ void
 fsopen(Req *r)
 {
 	respond(r, nil);
+}
+
+void
+fsclose(Fid *fid)
+{
+	if(fid->aux != nil)
+		closedec(fid->aux);
 }
 
 void
@@ -125,10 +178,11 @@ fsend(Srv *s)
 
 Srv fs =
 {
-	.open	= fsopen,
-	.read	= fsread,
+	.open		= fsopen,
+	.read		= fsread,
+	.destroyfid	= fsclose,
 
-	.end	= fsend
+	.end		= fsend
 };
 
 void
@@ -147,6 +201,7 @@ cuefsinit(Cuesheet *sheet, char *mtpt)
 	for(Entry *e = sheet->entries; e != nil; e = e->next)
 	{
 		debug("%d: %d\n",  e->index, e->starts[0].frames);
+		/* TODO make the format customizable */
 		s = smprint("%02d - %s.%s", e->index, e->title, formatext(p->outfmt));
 		strreplace(s, '/', '-');
 		createfile(fs.tree->root, s, nil, 0444, e);
