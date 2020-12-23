@@ -15,8 +15,16 @@ void* emalloc(ulong);
 char* setstr(char*, char**, char*);
 char* strreplace(char*, char, char);
 
+#pragma varargk argpos parserwarn 1
+#pragma varargk argpos parserfatal 1
+#pragma varargk argpos debug 1
+
 void parserwarn(char*, ...);
 void parserfatal(char*, ...);
+
+void debug(char*, ...);
+
+extern int verbosity;
 
 /*****/
 
@@ -24,7 +32,7 @@ enum
 {
 	WAVE, MP3, AIFF, BINARY, MOTOROLA,
 	/**/
-	FLAC, UNKNOWN
+	FLAC, OGG, OPUS, UNKNOWN
 };
 
 typedef struct
@@ -34,7 +42,7 @@ typedef struct
 
 typedef struct AFile
 {
-	int type, actual, fd;
+	int type, actual;
 	struct AFile *next;
 	char *name;
 } AFile;
@@ -65,6 +73,7 @@ extern Cuesheet *cursheet;
 
 Timestamp parsetime(int, int, int);
 double t2sec(Timestamp);
+double of2sec(uint, uint, uint, vlong);
 
 Cuesheet* newsheet(void);
 void freesheet(Cuesheet*);
@@ -75,7 +84,8 @@ void addfile(Cuesheet*, char*, int);
 void addnewtrack(Cuesheet*, int);
 void settimestamp(Cuesheet*, int, Timestamp);
 
-char* formatext(AFile*);
+char* formatext(int);
+char* fileext(AFile*);
 int actualformat(AFile*);
 
 static char *Estub = "not yet";

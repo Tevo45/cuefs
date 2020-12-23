@@ -25,6 +25,9 @@ main(int argc, char **argv)
 	case 'm':
 		mtpt = EARGF(usage());
 		break;
+	case 'v':
+		verbosity++;
+		break;
 	default:
 		usage();
 	} ARGEND;
@@ -42,7 +45,8 @@ main(int argc, char **argv)
 	cursheet = newsheet();
 	yyparse();
 
-	close(infd);
+	if(infd != 0)
+		close(infd);
 
 	cuefsinit(cursheet, mtpt);
 

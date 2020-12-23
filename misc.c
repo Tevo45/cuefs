@@ -4,6 +4,8 @@
 #include "cuefs.h"
 #include "y.tab.h"
 
+int verbosity = 0;
+
 void*
 erealloc(void *p, ulong s)
 {
@@ -84,4 +86,17 @@ parserfatal(char *fmt, ...)
 	free(str);
 	va_end(args);
 	exits("cantparse");
+}
+
+void
+debug(char *fmt, ...)
+{
+	va_list args;
+
+	if(verbosity < 3)
+		return;
+
+	va_start(args, fmt);
+	vfprint(2, fmt, args);
+	va_end(args);
 }

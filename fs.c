@@ -6,16 +6,18 @@
 
 #include "cuefs.h"
 
-typedef struct {
+typedef struct
+{
 	Cuesheet* sheet;
 	int outfmt;
 } Fsprops;
 
-void wavserve(Entry*, Req*);
+void pcmserve(Entry*, Req*);
 
 void (*servefmt[])(Entry*, Req*) =
 {
-	[WAVE]	= wavserve,
+//	[WAVE]		= wavserve,
+	[BINARY]	= pcmserve,
 
 	[UNKNOWN] = nil
 };
@@ -24,34 +26,38 @@ char *decoder[] =
 {
 	[MP3]	= "audio/mp3dec",
 	[FLAC]	= "audio/flacdec",
-	[WAVE]	= "audio/wavedec"
+	[WAVE]	= "audio/wavdec"
 };
 
 int
-pipedec(AFile *f, Timestamp t)
+pipedec(AFile *f, double sec)
 {
-	int fd[2];
-	double sec;
+	int fd[2], afd;
 	char *dec;
 
 	dec = decoder[f->actual];
-	sec = t2sec(t);
+
+	debug("decoding %s starting at %f\n", f->name, sec);
 
 	if(pipe(fd) < 0)
 		sysfatal("pipedec: can't decode: pipe: %r");
 
-	switch(rfork(RFFDG|RFPROC|RFMEM|RFNAMEG|RFNOTEG|RFREND))
+	switch(rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
 	{
 	case 0:
-		close(0);
-		close(1);
-		dup(f->fd, 0);
+		if((afd = open(f->name, OREAD)) < 0)
+			sysfatal("pipedec: can't decode: open: %r");
+		dup(afd, 0);
 		dup(fd[1], 1);
-		close(f->fd);
+		close(afd);
 		close(fd[1]);
-		dec = strdup(dec);
+		seek(0, 0, 0);
 		{
-			char *argv[] = { dec };
+			char *argv[] = { dec, "-s", smprint("%f", sec), nil };
+ 			debug("command line: ");
+			for(char **a = argv; *a != nil; a++)
+				debug("'%s' ", *a);
+			debug("\n");
 			if(argv[2] == nil)
 				sysfatal("pipedec: can't decode: smprint: %r");
 			exec(dec, argv);
@@ -65,17 +71,23 @@ pipedec(AFile *f, Timestamp t)
 	case -1:
 		sysfatal("pipedec: can't decode: rfork: %r");
 	}
+	close(fd[1]);
 	return fd[0];
 }
 
 void
-wavserve(Entry *e, Req *r)
+pcmserve(Entry *e, Req *r)
 {
+	double sec;
 	int dec;
 
-	dec = pipedec(e->file, e->starts[0]);
-	r->ofcall.count = readn(dec, r->ofcall.data, r->ifcall.count);
-	respond(r, Estub);
+	sec  = t2sec(e->starts[0]);
+	sec += of2sec(44100, 16, 2, r->ifcall.offset);
+
+	dec = pipedec(e->file, sec);
+	r->ofcall.count = read(dec, r->ofcall.data, r->ifcall.count);
+	close(dec);
+	respond(r, nil);
 }
 
 void
@@ -127,18 +139,15 @@ cuefsinit(Cuesheet *sheet, char *mtpt)
 
 	p = emalloc(sizeof(*p));
 	p->sheet  = sheet;
-	p->outfmt = WAVE;	/* STUB */
+	p->outfmt = BINARY;	/* STUB */
 
 	fs.aux	= p;
 	fs.tree	= alloctree(nil, nil, DMDIR | 0444, nil);
 
-	for(AFile *f = sheet->files; f != nil; f = f->next)
-		if(f->fd = open(f->name, OREAD) < 0)
-			sysfatal("open: %r");
-
 	for(Entry *e = sheet->entries; e != nil; e = e->next)
 	{
-		s = smprint("%02d - %s.%s", e->index, e->title, formatext(e->file));
+		debug("%d: %d\n",  e->index, e->starts[0].frames);
+		s = smprint("%02d - %s.%s", e->index, e->title, formatext(p->outfmt));
 		strreplace(s, '/', '-');
 		createfile(fs.tree->root, s, nil, 0444, e);
 		free(s);

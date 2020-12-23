@@ -7,16 +7,26 @@
 Timestamp
 parsetime(int min, int sec, int frames)
 {
+	debug("parsing %d:%d:%d into ", min, sec, frames);
 	sec += min*60;
 	frames += sec*75;
-
+	debug("%d frames\n", frames);
 	return (Timestamp){frames};
 }
 
 double
 t2sec(Timestamp t)
 {
-	return (double)t.frames/75.0;
+	debug("returning %fs for %ud frames\n", t.frames/75.0, t.frames);
+	return t.frames/75.0;
+}
+
+double
+of2sec(uint rate, uint size, uint chans, vlong offset)
+{
+	int bs;
+	bs = (size/8)*chans;
+	return (double)offset/(double)bs/(double)rate;
 }
 
 Cuesheet*
@@ -51,8 +61,6 @@ recfreefiles(Cuesheet *s, AFile *cur)
 		return;
 	recfreefiles(s, cur->next);
 	maybefree(nil, cur->name);
-	if(cur->fd >= 0)
-		close(cur->fd);
 }
 
 void
@@ -135,7 +143,6 @@ addfile(Cuesheet *c, char *name, int format)
 	new->type	= format;
 	new->actual	= actualformat(new);
 	new->next	= nil;
-	new->fd		= -1;
 
 	if(c->files == nil)
 		c->files = new;
@@ -172,6 +179,7 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 		parserfatal("timestamp outside of track");
 
 	atleast(c->curentry, i);
+	debug("setting timestamp[%d] for %d as %ud frames\n", i, c->curentry->index, t.frames);
 	c->curentry->starts[i] = t;
 }
 
@@ -206,18 +214,28 @@ actualformat(AFile *f)
 }
 
 char*
-formatext(AFile *f)
+formatext(int f)
 {
 	char *tab[] =
 	{
+		[WAVE]		= "wav",
 		[MP3]		= "mp3",
 		[AIFF]		= "aiff",
 		[BINARY]	= "bin",
+		[FLAC]		= "flac",
+		[OGG]		= "ogg",
+		[OPUS]		= "opus",
 		[MOTOROLA]	= ""		/* not sure */
 	};
 
-	if(f->type != WAVE)
-		return tab[f->type];
+	return tab[f];
+}
+
+char*
+fileext(AFile *f)
+{
+	if(f->actual != UNKNOWN)
+		return formatext(f->actual);
 
 	return extension(f->name);
 }
