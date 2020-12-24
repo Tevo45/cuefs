@@ -47,15 +47,16 @@ typedef struct AFile
 	char *name;
 } AFile;
 
-typedef struct
+typedef struct Start
 {
-	Timestamp *starts;
-	u8int maxindex;
-} Timestamps;
+	Timestamp;
+	u8int index;
+	struct Start *next;
+} Start;
 
 typedef struct Entry
 {
-	Timestamps;
+	Start *starts;
 	AFile *file;
 	int index;
 	char *title, *performer;

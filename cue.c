@@ -48,7 +48,11 @@ recfreeentries(Cuesheet *s, Entry *cur)
 	if(cur == nil)
 		return;
 	recfreeentries(s, cur->next);
-	maybefree(nil, cur->starts);
+	for(Start *s = cur->starts; s != nil; s = cur->starts)
+	{
+		cur->starts = s->next;
+		free(s);
+	}
 	/* file should get freed by the cuesheet */
 	maybefree(nil, cur->title);
 	maybefree(s->performer, cur->performer);
@@ -100,15 +104,6 @@ lastentry(Cuesheet *c)
 		c->curentry = c->curentry->next;
 
 	return c->curentry;
-}
-
-void
-atleast(Timestamps *ts, int val)
-{
-	if(ts->maxindex > val)
-		return;
-	ts->starts = erealloc(ts->starts, (val+1) * sizeof(*ts->starts));
-	ts->maxindex = val;
 }
 
 void
@@ -175,12 +170,28 @@ addnewtrack(Cuesheet *c, int i)
 void
 settimestamp(Cuesheet *c, int i, Timestamp t)
 {
+	Start *entry, *before;
+
 	if(c->curentry == nil)
 		parserfatal("timestamp outside of track");
 
-	atleast(c->curentry, i);
 	debug("setting timestamp[%d] for %d as %ud frames\n", i, c->curentry->index, t.frames);
-	c->curentry->starts[i] = t;
+
+	entry = emallocz(sizeof(*entry), 1);
+	entry->Timestamp = t;
+	entry->index = i;
+
+	before = nil;
+
+	if(c->curentry->starts == nil)
+		c->curentry->starts = entry;
+	else
+	{
+		for(Start *s = c->curentry->starts; s != nil && s->index < i; s++)
+			before = s;
+		entry->next = before->next;
+		before->next = entry;
+	}
 }
 
 char*

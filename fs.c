@@ -15,7 +15,7 @@ typedef struct
 typedef struct
 {
 	int fd, pid;
-	vlong curoff;
+	vlong curoff, end;
 } Decoder;
 
 void pcmserve(Entry*, Req*);
@@ -35,8 +35,12 @@ char *decoder[] =
 	[WAVE]	= "audio/wavdec"
 };
 
+/* 
+ * FIXME find a better way to signal decoder failure,
+ * one that we can answer the Tread with
+ */
 Decoder*
-pipedec(AFile *f, double sec, vlong off)
+pipedec(AFile *f, double sec, vlong off, vlong end)
 {
 	Decoder *ret;
 	int fd[2], afd;
@@ -52,6 +56,7 @@ pipedec(AFile *f, double sec, vlong off)
 	ret = emalloc(sizeof(*ret));
 	ret->fd = fd[0];
 	ret->curoff = off;
+	ret->end = end;
 
 	switch(ret->pid = rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
 	{
@@ -110,7 +115,16 @@ closedec(Decoder *dec)
 long
 readdec(Decoder *dec, void *buf, long count)
 {
-	long ret;
+	long ret, n;
+
+	debug("readdec: decoder offset = %lld, decoder end = %lld, count = %ld\n",
+		dec->curoff, dec->end, count);
+
+	n = dec->end - dec->curoff + count;
+	if(n < 0)
+		count += n;
+
+	debug("reading %ld bytes from pid %d\n", count, dec->pid);
 
 	ret = read(dec->fd, buf, count);
 	dec->curoff += ret;
@@ -123,13 +137,22 @@ pcmserve(Entry *e, Req *r)
 {
 	Decoder *dec;
 	double sec;
+	long end;
 
 	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, r->ifcall.offset);
 
+	/*
+	 * wouldn't be that bad to just read and throw away a little of the
+	 * decoded pcm if r->ifcall.offset isn't that far from dec->curoff
+	 */
 	if((dec = r->fid->aux) == nil || dec->curoff != r->ifcall.offset)
 	{
+		/* amount of samples between songs... */
+		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+		/* ...*2 channels, 2 bytes per sample */
+		end *= 2*2;
 		closedec(dec);
-		dec = r->fid->aux = pipedec(e->file, sec, r->ifcall.offset);
+		dec = r->fid->aux = pipedec(e->file, sec, r->ifcall.offset, end);
 	}
 
 	r->ofcall.count = readdec(dec, r->ofcall.data, r->ifcall.count);
