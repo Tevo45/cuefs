@@ -18,11 +18,35 @@ typedef struct
 	vlong curoff, end;
 } Decoder;
 
+/* from http://soundfile.sapp.org/doc/WaveFormat/ */
+
+/* TODO maybe this should be packed on some architectures? */
+typedef struct
+{
+		/* RIFF header */
+	u32int id;			/* BE */	/* RIFF */
+	u32int size;		/* LE */
+	u32int fmt;			/* BE */	/* WAVE */
+		/* fmt section */
+	u32int fmtid;		/* BE */	/* fmt  */
+	u32int fmtsize;		/* LE */
+	u16int format;		/* LE */
+	u16int chans;		/* LE */
+	u32int srate;		/* LE */
+	u32int brate;		/* LE */
+	u16int ballign;		/* LE */
+	u16int ssize;		/* LE */
+		/* data section */
+	u32int dataid;		/* BE */	/* data */
+	u32int datasize;	/* LE */
+} Wavehdr;
+
 void pcmserve(Entry*, Req*);
+void wavserve(Entry*, Req*);
 
 void (*servefmt[])(Entry*, Req*) =
 {
-//	[WAVE]		= wavserve,
+	[WAVE]		= wavserve,
 	[BINARY]	= pcmserve,
 
 	[UNKNOWN] = nil
@@ -30,9 +54,11 @@ void (*servefmt[])(Entry*, Req*) =
 
 char *decoder[] =
 {
+	[OGG]	= "audio/oggdec",
 	[MP3]	= "audio/mp3dec",
+	[OPUS]	= "audio/opusdec",	/* might not exist */
 	[FLAC]	= "audio/flacdec",
-	[WAVE]	= "audio/wavdec"
+	[WAVE]	= "audio/wavdec",
 };
 
 /* 
@@ -159,6 +185,82 @@ pcmserve(Entry *e, Req *r)
 	respond(r, nil);
 }
 
+u32int
+s2i(char *s)
+{
+	return (s[0] << 24 | s[1] << 16 | s[2] << 8 | s[3]);
+}
+
+void
+fillwavehdr(Wavehdr *hdr, u16int chans, u32int srate, u16int ssize, u32int dsize)
+{
+	hdr->id		= s2i("RIFF");
+	hdr->size	= 36 + dsize;
+	hdr->fmt	= s2i("WAVE");
+
+	hdr->fmtid		= s2i("fmt ");
+	hdr->fmtsize	= 16;
+	hdr->format		= 1;	/* raw pcm */
+	hdr->chans		= chans;
+	hdr->srate		= srate;
+	hdr->brate		= srate * chans * ssize/8;
+	hdr->ssize		= ssize;
+
+	hdr->dataid		= s2i("data");
+	hdr->datasize	= dsize;
+}
+
+void
+wavserve(Entry *e, Req *r)
+{
+	Wavehdr hdr;
+	Decoder *dec;
+	double sec;
+	ulong end, offset, count, hcount;
+
+	offset = r->ifcall.offset;
+	count = r->ifcall.count;
+
+	debug("wavserve: offset → %lu, count → %lu\n", offset, count);
+
+	/* 44 == start of pcm data */
+	if(offset < 44)
+	{
+		hcount = 44 - offset;
+		count -= hcount;
+		offset = 0;
+		debug("wavserve: serving %lu bytes of wav header\n", hcount);
+		fillwavehdr(hdr, 2, 44100, 16, count);
+		memcpy(r->ofcall.data, hdr, hcount);
+	}
+
+	if(count == 0)
+	{
+		respond(r, nil);
+		return;
+	}
+
+	debug("wavserve: %lu to go\n", count);
+
+	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
+
+	/*
+	 * see comment on pcmserve
+	 */
+	if((dec = r->fid->aux) == nil || dec->curoff != offset)
+	{
+		/* amount of samples between songs... */
+		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+		/* ...*2 channels, 2 bytes per sample */
+		end *= 2*2;
+		closedec(dec);
+		dec = r->fid->aux = pipedec(e->file, sec, offset, end);
+	}
+
+	r->ofcall.count = readdec(dec, r->ofcall.data, count);
+	respond(r, nil);
+}
+
 void
 fsopen(Req *r)
 {
@@ -216,7 +318,7 @@ cuefsinit(Cuesheet *sheet, char *mtpt)
 
 	p = emalloc(sizeof(*p));
 	p->sheet  = sheet;
-	p->outfmt = BINARY;	/* STUB */
+	p->outfmt = WAVE;	/* STUB */
 
 	fs.aux	= p;
 	fs.tree	= alloctree(nil, nil, DMDIR | 0444, nil);

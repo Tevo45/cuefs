@@ -45,6 +45,7 @@ freesheet(Cuesheet *s)
 {
 	Entry *e;
 	AFile *f;
+	Start *st;
 
 	/* free entries */
 	while((e = s->entries) != nil)
@@ -52,7 +53,7 @@ freesheet(Cuesheet *s)
 		s->entries = e->next;
 
 		/* free starts */
-		for(Start *st = e->starts; st != nil; st = e->starts)
+		while((st = e->starts) != nil)
 		{
 			e->starts = st->next;
 			free(st);

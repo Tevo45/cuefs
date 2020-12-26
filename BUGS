@@ -4,3 +4,4 @@
 • can only serve .wav and raw pcm files (no flac encoder)
 • everything will get resampled to 44100kHz/16bit/2channel
 • the codebase is a mess
+• reading concurrently from the same fid might break decoding logic, or be unecessarily slow (does that ever happen?)
