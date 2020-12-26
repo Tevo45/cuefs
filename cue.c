@@ -63,7 +63,7 @@ freesheet(Cuesheet *s)
 		 * the Cuesheet, even if they're "song only" performers?
 		 */
 		if(e->performer != s->performer)
-			free(e->title);
+			free(e->performer);
 
 		free(e);
 	}
@@ -213,7 +213,7 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 char*
 extension(char *f)
 {
-	char *ext;
+	char *ext = nil;
 
 	for(; *f != 0; f++)
 		if(*f == '.')
