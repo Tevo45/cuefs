@@ -4,29 +4,34 @@
 #include "cuefs.h"
 #include "y.tab.h"
 
+/*
+ * minute:second:frames → Timestamp
+ * 1 frame = 1/75 second
+ */
 Timestamp
 parsetime(int min, int sec, int frames)
 {
-	debug("parsing %d:%d:%d into ", min, sec, frames);
 	sec += min*60;
 	frames += sec*75;
-	debug("%d frames\n", frames);
 	return (Timestamp){frames};
 }
 
 double
 t2sec(Timestamp t)
 {
-	debug("returning %fs for %ud frames\n", t.frames/75.0, t.frames);
 	return t.frames/75.0;
 }
 
+/*
+ * offset (in bytes) → sec, with 
+ * rate = sample rate, size = sample size (bits), chans = channels
+ */
 double
 of2sec(uint rate, uint size, uint chans, vlong offset)
 {
 	int bs;
 	bs = (size/8)*chans;
-	return (double)offset/(double)bs/(double)rate;
+	return (double)offset/bs/rate;
 }
 
 Cuesheet*
@@ -36,44 +41,46 @@ newsheet(void)
 }
 
 void
-maybefree(void *s, void *p)
-{
-	if(p != nil && p != s)
-		free(p);
-}
-
-void
-recfreeentries(Cuesheet *s, Entry *cur)
-{
-	if(cur == nil)
-		return;
-	recfreeentries(s, cur->next);
-	for(Start *s = cur->starts; s != nil; s = cur->starts)
-	{
-		cur->starts = s->next;
-		free(s);
-	}
-	/* file should get freed by the cuesheet */
-	maybefree(nil, cur->title);
-	maybefree(s->performer, cur->performer);
-}
-
-void
-recfreefiles(Cuesheet *s, AFile *cur)
-{
-	if(cur == nil)
-		return;
-	recfreefiles(s, cur->next);
-	maybefree(nil, cur->name);
-}
-
-void
 freesheet(Cuesheet *s)
 {
-	recfreeentries(s, s->entries);
-	recfreefiles(s, s->files);
-	maybefree(nil, s->title);
-	maybefree(nil, s->performer);
+	Entry *e;
+	AFile *f;
+
+	/* free entries */
+	while((e = s->entries) != nil)
+	{
+		s->entries = e->next;
+
+		/* free starts */
+		for(Start *st = e->starts; st != nil; st = e->starts)
+		{
+			e->starts = st->next;
+			free(st);
+		}
+		free(e->title);
+		/*
+		 * TODO maybe we should keep track of every performer in
+		 * the Cuesheet, even if they're "song only" performers?
+		 */
+		if(e->performer != s->performer)
+			free(e->title);
+
+		free(e);
+	}
+
+	/* free files */
+	while((f = s->files) != nil)
+	{
+		s->files = f->next;
+
+		free(f->name);
+		free(f);
+	}
+
+	free(s->title);
+	free(s->performer);
+
+	free(s);
 }
 
 AFile*
@@ -111,9 +118,16 @@ setperformer(Cuesheet *c, char *artist)
 {
 	artist = strdup(artist);
 	if(c->curentry == nil)
-		setstr(nil, &c->performer, artist);
+	{
+		free(c->performer);
+		c->performer = artist;
+	}
 	else
-		setstr(c->performer, &c->curentry->performer, artist);
+	{
+		if(c->curentry->performer != c->performer)
+			free(c->curentry->performer);
+		c->curentry->performer = artist;
+	}
 }
 
 void
@@ -121,17 +135,21 @@ settitle(Cuesheet *c, char *title)
 {
 	title = strdup(title);
 	if(c->curentry == nil)
-		setstr(nil, &c->title, title);
+	{
+		free(c->title);
+		c->title = title;
+	}
 	else
-		setstr(nil, &c->curentry->title, title);
+	{
+		free(c->curentry->title);
+		c->curentry->title = title;
+	}
 }
 
 void
 addfile(Cuesheet *c, char *name, int format)
 {
 	AFile *new;
-
-	lastfile(c);
 
 	new = emalloc(sizeof(*new));
 	new->name	= strdup(name);
@@ -142,7 +160,7 @@ addfile(Cuesheet *c, char *name, int format)
 	if(c->files == nil)
 		c->files = new;
 	else
-		c->curfile->next = new;
+		lastfile(c)->next = new;
 
 	c->curfile = new;
 }
@@ -152,8 +170,6 @@ addnewtrack(Cuesheet *c, int i)
 {
 	Entry *new;
 
-	lastentry(c);
-
 	new = emallocz(sizeof(*new), 1);
 	new->file = c->curfile;
 	new->performer = c->performer;
@@ -162,7 +178,7 @@ addnewtrack(Cuesheet *c, int i)
 	if(c->entries == nil)
 		c->entries = new;
 	else
-		c->curentry->next = new;
+		lastentry(c)->next = new;
 
 	c->curentry = new;
 }
@@ -197,11 +213,11 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 char*
 extension(char *f)
 {
-	char *ext = "";
+	char *ext;
 
-	for(char *c = f; *c != 0; c++)
-		if(*c == '.')
-			ext = c+1;
+	for(; *f != 0; f++)
+		if(*f == '.')
+			ext = f+1;
 
 	return ext;
 }
