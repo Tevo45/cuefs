@@ -201,9 +201,7 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 	p = &c->curentry->starts;
 
 	while((*p) && (*p)->index < i)
-	{
 		p = &(*p)->next;
-	}
 
 	entry->next = *p;
 	*p = entry;
@@ -251,6 +249,7 @@ formatext(int f)
 		[FLAC]		= "flac",
 		[OGG]		= "ogg",
 		[OPUS]		= "opus",
+		[AAC]		= "aac",
 		[MOTOROLA]	= ""		/* not sure */
 	};
 

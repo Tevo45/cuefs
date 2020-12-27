@@ -56,6 +56,7 @@ char *decoder[] =
 {
 	[OGG]	= "audio/oggdec",
 	[MP3]	= "audio/mp3dec",
+	[AAC]	= "audio/aacdec",	/* ↓ */
 	[OPUS]	= "audio/opusdec",	/* might not exist */
 	[FLAC]	= "audio/flacdec",
 	[WAVE]	= "audio/wavdec",
@@ -131,10 +132,12 @@ closedec(Decoder *dec)
 	if((path = smprint("/proc/%d/notepg", dec->pid)) == nil)
 		sysfatal("smprint: %r");
 	if((fd = open(path, OWRITE)) < 0)
-		sysfatal("open: %r");
+		goto cleanup;	/* open failed, assume it's already dead */
 	write(fd, "kill", strlen("kill"));
 	close(fd);
 
+cleanup:
+	free(path);
 	free(dec);
 }
 
@@ -146,9 +149,13 @@ readdec(Decoder *dec, void *buf, long count)
 	debug("readdec: decoder offset = %lld, decoder end = %lld, count = %ld\n",
 		dec->curoff, dec->end, count);
 
-	n = dec->end - dec->curoff + count;
-	if(n < 0)
-		count += n;
+	/* dec->end == 0 means "there's no end, read what you can" */
+	if(dec->end > 0)
+	{
+		n = dec->end - dec->curoff + count;
+		if(n < 0)
+			count += n;
+	}
 
 	debug("reading %ld bytes from pid %d\n", count, dec->pid);
 
@@ -173,10 +180,15 @@ pcmserve(Entry *e, Req *r)
 	 */
 	if((dec = r->fid->aux) == nil || dec->curoff != r->ifcall.offset)
 	{
-		/* amount of samples between songs... */
-		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
-		/* ...*2 channels, 2 bytes per sample */
-		end *= 2*2;
+		if(e->next != nil)
+		{
+			/* amount of samples between songs... */
+			end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+			/* ...*2 channels, 2 bytes per sample */
+			end *= 2*2;
+		}
+		else
+			end = 0;
 		closedec(dec);
 		dec = r->fid->aux = pipedec(e->file, sec, r->ifcall.offset, end);
 	}
@@ -188,7 +200,7 @@ pcmserve(Entry *e, Req *r)
 u32int
 s2i(char *s)
 {
-	return (s[0] << 24 | s[1] << 16 | s[2] << 8 | s[3]);
+	return (s[3] << 24 | s[2] << 16 | s[1] << 8 | s[0]);
 }
 
 void
@@ -221,7 +233,7 @@ wavserve(Entry *e, Req *r)
 	offset = r->ifcall.offset;
 	count = r->ifcall.count;
 
-	debug("wavserve: offset → %lu, count → %lu\n", offset, count);
+	hcount = 0;
 
 	/* 44 == start of pcm data */
 	if(offset < 44)
@@ -229,9 +241,8 @@ wavserve(Entry *e, Req *r)
 		hcount = 44 - offset;
 		count -= hcount;
 		offset = 0;
-		debug("wavserve: serving %lu bytes of wav header\n", hcount);
-		fillwavehdr(hdr, 2, 44100, 16, count);
-		memcpy(r->ofcall.data, hdr, hcount);
+		fillwavehdr(&hdr, 2, 44100, 16, count);
+		memcpy(r->ofcall.data, &hdr, hcount);
 	}
 
 	if(count == 0)
@@ -240,8 +251,6 @@ wavserve(Entry *e, Req *r)
 		return;
 	}
 
-	debug("wavserve: %lu to go\n", count);
-
 	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
 
 	/*
@@ -249,15 +258,20 @@ wavserve(Entry *e, Req *r)
 	 */
 	if((dec = r->fid->aux) == nil || dec->curoff != offset)
 	{
-		/* amount of samples between songs... */
-		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
-		/* ...*2 channels, 2 bytes per sample */
-		end *= 2*2;
+		if(e->next != nil)
+		{
+			/* amount of samples between songs... */
+			end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+			/* ...*2 channels, 2 bytes per sample */
+			end *= 2*2;
+		}
+		else
+			end = 0;
 		closedec(dec);
 		dec = r->fid->aux = pipedec(e->file, sec, offset, end);
 	}
 
-	r->ofcall.count = readdec(dec, r->ofcall.data, count);
+	r->ofcall.count = readdec(dec, r->ofcall.data+hcount, count);
 	respond(r, nil);
 }
 

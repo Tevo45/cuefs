@@ -32,7 +32,7 @@ enum
 {
 	WAVE, MP3, AIFF, BINARY, MOTOROLA,
 	/**/
-	FLAC, OGG, OPUS, UNKNOWN
+	AAC, FLAC, OGG, OPUS, UNKNOWN
 };
 
 typedef struct
