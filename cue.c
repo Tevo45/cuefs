@@ -187,7 +187,7 @@ addnewtrack(Cuesheet *c, int i)
 void
 settimestamp(Cuesheet *c, int i, Timestamp t)
 {
-	Start *entry, *before;
+	Start *entry, **p;
 
 	if(c->curentry == nil)
 		parserfatal("timestamp outside of track");
@@ -198,17 +198,15 @@ settimestamp(Cuesheet *c, int i, Timestamp t)
 	entry->Timestamp = t;
 	entry->index = i;
 
-	before = nil;
+	p = &c->curentry->starts;
 
-	if(c->curentry->starts == nil)
-		c->curentry->starts = entry;
-	else
+	while((*p) && (*p)->index < i)
 	{
-		for(Start *s = c->curentry->starts; s != nil && s->index < i; s++)
-			before = s;
-		entry->next = before->next;
-		before->next = entry;
+		p = &(*p)->next;
 	}
+
+	entry->next = *p;
+	*p = entry;
 }
 
 char*
