@@ -8,12 +8,18 @@
 
 typedef struct
 {
+	void (*cleanup)(void*);
+} Resource;
+
+typedef struct
+{
 	Cuesheet* sheet;
 	int outfmt;
 } Fsprops;
 
 typedef struct
 {
+	Resource;
 	int fd, pid;
 	vlong curoff, end;
 } Decoder;
@@ -62,6 +68,29 @@ char *decoder[] =
 	[WAVE]	= "audio/wavdec",
 };
 
+void
+closedec(Decoder *dec)
+{
+	char *path;
+	int fd;
+
+	if(dec == nil)
+		return;
+
+	close(dec->fd);
+
+	if((path = smprint("/proc/%d/notepg", dec->pid)) == nil)
+		sysfatal("smprint: %r");
+	if((fd = open(path, OWRITE)) < 0)
+		goto cleanup;	/* open failed, assume it's already dead */
+	write(fd, "kill", strlen("kill"));
+	close(fd);
+
+cleanup:
+	free(path);
+	free(dec);
+}
+
 /* 
  * FIXME find a better way to signal decoder failure,
  * one that we can answer the Tread with
@@ -81,6 +110,7 @@ pipedec(AFile *f, double sec, vlong off, vlong end)
 		sysfatal("pipedec: can't decode: pipe: %r");
 
 	ret = emalloc(sizeof(*ret));
+	ret->cleanup = (void(*)(void*))closedec;
 	ret->fd = fd[0];
 	ret->curoff = off;
 	ret->end = end;
@@ -118,29 +148,6 @@ pipedec(AFile *f, double sec, vlong off, vlong end)
 	return ret;
 }
 
-void
-closedec(Decoder *dec)
-{
-	char *path;
-	int fd;
-
-	if(dec == nil)
-		return;
-
-	close(dec->fd);
-
-	if((path = smprint("/proc/%d/notepg", dec->pid)) == nil)
-		sysfatal("smprint: %r");
-	if((fd = open(path, OWRITE)) < 0)
-		goto cleanup;	/* open failed, assume it's already dead */
-	write(fd, "kill", strlen("kill"));
-	close(fd);
-
-cleanup:
-	free(path);
-	free(dec);
-}
-
 long
 readdec(Decoder *dec, void *buf, long count)
 {
@@ -165,20 +172,20 @@ readdec(Decoder *dec, void *buf, long count)
 	return ret;
 }
 
-void
-pcmserve(Entry *e, Req *r)
+Decoder*
+reqdec(Entry *e, Req *r, ulong offset)
 {
 	Decoder *dec;
 	double sec;
-	long end;
+	ulong end;
 
-	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, r->ifcall.offset);
+	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
 
 	/*
 	 * wouldn't be that bad to just read and throw away a little of the
-	 * decoded pcm if r->ifcall.offset isn't that far from dec->curoff
+	 * decoded pcm if offset isn't that far from dec->curoff
 	 */
-	if((dec = r->fid->aux) == nil || dec->curoff != r->ifcall.offset)
+	if((dec = r->fid->aux) == nil || dec->curoff != offset)
 	{
 		if(e->next != nil)
 		{
@@ -190,9 +197,18 @@ pcmserve(Entry *e, Req *r)
 		else
 			end = 0;
 		closedec(dec);
-		dec = r->fid->aux = pipedec(e->file, sec, r->ifcall.offset, end);
+		dec = r->fid->aux = pipedec(e->file, sec, offset, end);
 	}
 
+	return dec;
+}
+
+void
+pcmserve(Entry *e, Req *r)
+{
+	Decoder *dec;
+
+	dec = reqdec(e, r, r->ifcall.offset);
 	r->ofcall.count = readdec(dec, r->ofcall.data, r->ifcall.count);
 	respond(r, nil);
 }
@@ -227,8 +243,7 @@ wavserve(Entry *e, Req *r)
 {
 	Wavehdr hdr;
 	Decoder *dec;
-	double sec;
-	ulong end, offset, count, hcount;
+	ulong offset, count, hcount;
 
 	offset = r->ifcall.offset;
 	count = r->ifcall.count;
@@ -251,26 +266,7 @@ wavserve(Entry *e, Req *r)
 		return;
 	}
 
-	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
-
-	/*
-	 * see comment on pcmserve
-	 */
-	if((dec = r->fid->aux) == nil || dec->curoff != offset)
-	{
-		if(e->next != nil)
-		{
-			/* amount of samples between songs... */
-			end = (e->next->starts->frames - e->starts->frames) * (44100/75);
-			/* ...*2 channels, 2 bytes per sample */
-			end *= 2*2;
-		}
-		else
-			end = 0;
-		closedec(dec);
-		dec = r->fid->aux = pipedec(e->file, sec, offset, end);
-	}
-
+	dec = reqdec(e, r, offset);
 	r->ofcall.count = readdec(dec, r->ofcall.data+hcount, count);
 	respond(r, nil);
 }
@@ -284,8 +280,10 @@ fsopen(Req *r)
 void
 fsclose(Fid *fid)
 {
-	if(fid->aux != nil)
-		closedec(fid->aux);
+	Resource *res;
+
+	if((res = fid->aux) != nil)
+		res->cleanup(res);
 }
 
 void
@@ -336,6 +334,8 @@ cuefsinit(Cuesheet *sheet, char *mtpt)
 
 	fs.aux	= p;
 	fs.tree	= alloctree(nil, nil, DMDIR | 0444, nil);
+
+	/* TODO check if decoder, encoder, files exist */
 
 	for(Entry *e = sheet->entries; e != nil; e = e->next)
 	{
