@@ -35,40 +35,47 @@ enum
 	AAC, FLAC, OGG, OPUS, UNKNOWN
 };
 
-typedef struct
+typedef struct Timestamp Timestamp;
+typedef struct AFile AFile;
+typedef struct Start Start;
+typedef struct Entry Entry;
+typedef struct Cuesheet Cuesheet;
+
+struct Timestamp
 {
 	u64int frames;
-} Timestamp;
+};
 
-typedef struct AFile
+struct AFile
 {
 	int type, actual;
-	struct AFile *next;
+	AFile *next;
 	char *name;
-} AFile;
+};
 
-typedef struct Start
+struct Start
 {
 	Timestamp;
 	u8int index;
-	struct Start *next;
-} Start;
+	Start *next;
+};
 
-typedef struct Entry
+struct Entry
 {
+	Cuesheet *sheet;
 	Start *starts;
 	AFile *file;
 	int index;
 	char *title, *performer;
-	struct Entry *next;
-} Entry;
+	Entry *next;
+};
 
-typedef struct
+struct Cuesheet
 {
 	char *title, *performer;
 	AFile *files, *curfile;
 	Entry *entries, *curentry;
-} Cuesheet;
+};
 
 extern Cuesheet *cursheet;
 

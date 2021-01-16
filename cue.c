@@ -172,6 +172,7 @@ addnewtrack(Cuesheet *c, int i)
 	Entry *new;
 
 	new = emallocz(sizeof(*new), 1);
+	new->sheet = c;
 	new->file = c->curfile;
 	new->performer = c->performer;
 	new->index = i;

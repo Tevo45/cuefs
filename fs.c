@@ -47,12 +47,22 @@ typedef struct
 	u32int datasize;	/* LE */
 } Wavehdr;
 
+typedef struct
+{
+	Resource;
+	Decoder *dec;
+	int pollpid, encpid, fd;
+	vlong curoff;
+} Flacenc;
+
 void pcmserve(Entry*, Req*);
 void wavserve(Entry*, Req*);
+void flacserve(Entry*, Req*);
 
 void (*servefmt[])(Entry*, Req*) =
 {
 	[WAVE]		= wavserve,
+	[FLAC]		= flacserve,
 	[BINARY]	= pcmserve,
 
 	[UNKNOWN] = nil
@@ -69,25 +79,29 @@ char *decoder[] =
 };
 
 void
-closedec(Decoder *dec)
+kill(int pid)
 {
 	char *path;
 	int fd;
 
+	if((path = smprint("/proc/%d/notepg", pid)) == nil)
+		sysfatal("smprint: %r");
+	if((fd = open(path, OWRITE)) < 0)
+		goto end;
+	write(fd, "kill", strlen("kill"));
+	close(fd);
+end:
+	free(path);
+}
+
+void
+closedec(Decoder *dec)
+{
 	if(dec == nil)
 		return;
 
 	close(dec->fd);
-
-	if((path = smprint("/proc/%d/notepg", dec->pid)) == nil)
-		sysfatal("smprint: %r");
-	if((fd = open(path, OWRITE)) < 0)
-		goto cleanup;	/* open failed, assume it's already dead */
-	write(fd, "kill", strlen("kill"));
-	close(fd);
-
-cleanup:
-	free(path);
+	kill(dec->pid);
 	free(dec);
 }
 
@@ -164,7 +178,7 @@ readdec(Decoder *dec, void *buf, long count)
 			count += n;
 	}
 
-	debug("reading %ld bytes from pid %d\n", count, dec->pid);
+	debug("readdec: reading %ld bytes from pid %d\n", count, dec->pid);
 
 	ret = read(dec->fd, buf, count);
 	dec->curoff += ret;
@@ -172,12 +186,29 @@ readdec(Decoder *dec, void *buf, long count)
 	return ret;
 }
 
+vlong
+entrylen(Entry *e)
+{
+	vlong end;
+
+	if(e->next != nil)
+	{
+		/* amount of samples between songs... */
+		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+		/* ...*2 channels, 2 bytes per sample */
+		end *= 2*2;
+	}
+	else
+		end = 0;
+
+	return end;
+}
+
 Decoder*
 reqdec(Entry *e, Req *r, ulong offset)
 {
 	Decoder *dec;
 	double sec;
-	ulong end;
 
 	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
 
@@ -187,17 +218,8 @@ reqdec(Entry *e, Req *r, ulong offset)
 	 */
 	if((dec = r->fid->aux) == nil || dec->curoff != offset)
 	{
-		if(e->next != nil)
-		{
-			/* amount of samples between songs... */
-			end = (e->next->starts->frames - e->starts->frames) * (44100/75);
-			/* ...*2 channels, 2 bytes per sample */
-			end *= 2*2;
-		}
-		else
-			end = 0;
 		closedec(dec);
-		dec = r->fid->aux = pipedec(e->file, sec, offset, end);
+		dec = r->fid->aux = pipedec(e->file, sec, offset, entrylen(e));
 	}
 
 	return dec;
@@ -272,6 +294,156 @@ wavserve(Entry *e, Req *r)
 }
 
 void
+closeflac(Flacenc *enc)
+{
+	if(enc == nil)
+		return;
+
+	closedec(enc->dec);
+	kill(enc->pollpid);
+	kill(enc->encpid);
+	close(enc->fd);
+
+	free(enc);
+}
+
+int
+polldec(Decoder *dec, int fd)
+{
+	char buf[4096] = {0};
+	int pid;
+
+	switch(pid = rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
+	{
+	case 0:
+		for(int n = -1; n != 0;)
+		{
+			debug("polldec: reading %d from decoder\n", sizeof(buf));
+			n = readdec(dec, buf, sizeof(buf));
+			write(fd, buf, sizeof(buf));
+			debug("polldec: writing %d into poll pipe\n", n);
+		}
+		debug("polldec: decoder finished, exiting\n");
+		closedec(dec);
+		exits(0);
+	case -1:
+		sysfatal("polldec: rfork: %r");
+	}
+
+	close(fd);
+	return pid;
+}
+
+int
+_flacenc(Entry *e, int infd, int outfd)
+{
+	static char *enc = "audio/flacenc";
+	int pid;
+
+	switch(pid = rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
+	{
+	case 0:
+		dup(infd, 0);
+		dup(outfd, 1);
+		close(infd);
+		close(outfd);
+		{
+			/* TODO better metadata handling */
+			char *argv[] =
+			{ 
+				enc, 
+				"-T", smprint("TITLE=%s", e->title),
+				"-T", smprint("ARTIST=%s", e->performer),
+				"-T", smprint("ALBUMARTIST=%s", e->sheet->performer),
+				"-T", smprint("ALBUM=%s", e->sheet->title),
+				nil
+			};
+			exec(enc, argv);
+			enc = smprint("/bin/%s", enc);
+			if(enc == nil)
+				sysfatal("_flacenc: can't encode: smprint: %r");
+			exec(enc, argv);
+			sysfatal("_flacenc: can't encode: exec: %r");
+		}
+	case -1:
+		sysfatal("_flacenc: can't encode: rfork: %r");
+	}
+
+	close(infd);
+	close(outfd);
+	return pid;
+}
+
+Flacenc*
+flacenc(Entry *e)
+{
+	Flacenc *enc;
+	int encfd[2], decfd[2];
+
+	if(pipe(encfd) < 0 || pipe(decfd) < 0)
+		sysfatal("flacenc: pipe: %r");
+
+	enc = emalloc(sizeof(*enc));
+	enc->cleanup = (void(*)(void*))closeflac;
+	enc->fd = encfd[0];
+	enc->dec = pipedec(e->file, t2sec(e->starts[0]), 0, entrylen(e));
+	enc->pollpid = polldec(enc->dec, decfd[1]);
+	enc->encpid = _flacenc(e, decfd[0], encfd[1]);
+
+	return enc;
+}
+
+long
+readflac(Flacenc *enc, void *buf, long count)
+{
+	long ret;
+
+	debug("readflac: reading %ld bytes from poll pipe\n", count);
+	ret = read(enc->fd, buf, count);
+	enc->curoff += ret;
+
+	return ret;
+}
+
+long
+seekflac(Flacenc *enc, vlong offset)
+{
+	char buf[4096];
+
+	if(offset < enc->curoff)
+		return enc->curoff;
+
+	debug("seekflac: %lld → %lld\n", offset);
+
+	for(int todo; (todo = enc->curoff - offset) == 0;)
+	{
+		debug("seekflac: %d to go\n");
+		if(readflac(enc, buf, todo < sizeof(buf) ? todo : sizeof(buf)) == 0)
+			break;
+	}
+
+	return enc->curoff;
+}
+
+void
+flacserve(Entry *e, Req *r)
+{
+	Flacenc *enc;
+
+	if((enc = r->fid->aux) == nil || enc->curoff < r->ifcall.offset)
+	{
+		closeflac(enc);
+		enc = r->fid->aux = flacenc(e);
+	}
+
+	if(enc->curoff != r->ifcall.offset)
+		seekflac(enc, r->ifcall.offset);
+
+	r->ofcall.count = readflac(enc, r->ofcall.data, r->ifcall.count);
+	respond(r, nil);
+}
+
+void
 fsopen(Req *r)
 {
 	respond(r, nil);
@@ -330,7 +502,7 @@ cuefsinit(Cuesheet *sheet, char *mtpt)
 
 	p = emalloc(sizeof(*p));
 	p->sheet  = sheet;
-	p->outfmt = WAVE;	/* STUB */
+	p->outfmt = FLAC;	/* STUB */
 
 	fs.aux	= p;
 	fs.tree	= alloctree(nil, nil, DMDIR | 0444, nil);
