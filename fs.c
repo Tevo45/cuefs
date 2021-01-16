@@ -14,7 +14,7 @@ typedef struct
 typedef struct
 {
 	Cuesheet* sheet;
-	int outfmt;
+	int outfmt, prefidx;
 } Fsprops;
 
 typedef struct
@@ -94,6 +94,21 @@ end:
 	free(path);
 }
 
+Timestamp*
+prefindex(Entry *e)
+{
+	extern Srv fs;
+	Fsprops *p;
+
+	p = fs.aux;
+
+	for(Start *s = e->starts; s != nil; s = s->next)
+		if(s->index == p->prefidx)
+			return s;
+
+	return e->starts;
+}
+
 void
 closedec(Decoder *dec)
 {
@@ -113,7 +128,7 @@ Decoder*
 pipedec(AFile *f, double sec, vlong off, vlong end)
 {
 	Decoder *ret;
-	int fd[2], afd;
+	int fd[2], afd, devnull = -1;
 	char *dec;
 
 	dec = decoder[f->actual];
@@ -132,12 +147,15 @@ pipedec(AFile *f, double sec, vlong off, vlong end)
 	switch(ret->pid = rfork(RFPROC|RFFDG|RFREND|RFNOTEG))
 	{
 	case 0:
-		if((afd = open(f->name, OREAD)) < 0)
+		if((afd = open(f->name, OREAD)) < 0 || (devnull = open("/dev/null", OWRITE)) < 0)
 			sysfatal("pipedec: can't decode: open: %r");
 		dup(afd, 0);
 		dup(fd[1], 1);
+		if(verbosity < 1)
+			dup(devnull, 2);
 		close(afd);
 		close(fd[1]);
+		close(devnull);
 		seek(0, 0, 0);
 		{
 			char *argv[] = { dec, "-s", smprint("%f", sec), nil };
@@ -194,7 +212,7 @@ entrylen(Entry *e)
 	if(e->next != nil)
 	{
 		/* amount of samples between songs... */
-		end = (e->next->starts->frames - e->starts->frames) * (44100/75);
+		end = (prefindex(e->next)->frames - prefindex(e)->frames) * (44100/75);
 		/* ...*2 channels, 2 bytes per sample */
 		end *= 2*2;
 	}
@@ -210,7 +228,7 @@ reqdec(Entry *e, Req *r, ulong offset)
 	Decoder *dec;
 	double sec;
 
-	sec = t2sec(e->starts[0]) + of2sec(44100, 16, 2, offset);
+	sec = t2sec(*prefindex(e)) + of2sec(44100, 16, 2, offset);
 
 	/*
 	 * wouldn't be that bad to just read and throw away a little of the
@@ -386,7 +404,7 @@ flacenc(Entry *e)
 	enc = emalloc(sizeof(*enc));
 	enc->cleanup = (void(*)(void*))closeflac;
 	enc->fd = encfd[0];
-	enc->dec = pipedec(e->file, t2sec(e->starts[0]), 0, entrylen(e));
+	enc->dec = pipedec(e->file, t2sec(*prefindex(e)), 0, entrylen(e));
 	enc->pollpid = polldec(enc->dec, decfd[1]);
 	enc->encpid = _flacenc(e, decfd[0], encfd[1]);
 
@@ -495,23 +513,35 @@ Srv fs =
 };
 
 void
-cuefsinit(Cuesheet *sheet, char *mtpt)
+cuefsinit(Cuesheet *sheet, char *mtpt, int outfmt, int prefidx)
 {
 	Fsprops *p;
 	char *s;
 
 	p = emalloc(sizeof(*p));
-	p->sheet  = sheet;
-	p->outfmt = FLAC;	/* STUB */
+	p->sheet	= sheet;
+	p->outfmt	= (outfmt == -1) ? prefoutfmt(sheet->files->actual) : outfmt;
+	p->prefidx	= prefidx;
 
 	fs.aux	= p;
 	fs.tree	= alloctree(nil, nil, DMDIR | 0444, nil);
 
-	/* TODO check if decoder, encoder, files exist */
+	for(AFile *file = sheet->files; file != nil; file = file->next)
+	{
+		if(access(file->name, AREAD) < 0)
+			sysfatal("cannot access: %r");
+
+		if(access(s = decoder[file->actual], AEXEC) < 0)
+		{
+			if(access(s = smprint("/bin/%s", s), AEXEC) < 0)
+				sysfatal("cannot find decoder: %r");
+			free(s);
+		}
+	}
 
 	for(Entry *e = sheet->entries; e != nil; e = e->next)
 	{
-		debug("%d: %d\n",  e->index, e->starts[0].frames);
+		debug("%d: %d\n",  e->index, prefindex(e)->frames);
 		/* TODO make the format customizable */
 		s = smprint("%02d - %s.%s", e->index, e->title, formatext(p->outfmt));
 		strreplace(s, '/', '-');

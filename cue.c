@@ -228,7 +228,8 @@ actualformat(AFile *f)
 	if(f->type != WAVE)
 		return f->type;
 
-	ext = extension(f->name);
+	if((ext = extension(f->name)) == nil)
+		return UNKNOWN;
 
 	if(strcmp(ext, "wav") == 0)
 		return WAVE;
@@ -241,7 +242,7 @@ actualformat(AFile *f)
 char*
 formatext(int f)
 {
-	char *tab[] =
+	static char *tab[] =
 	{
 		[WAVE]		= "wav",
 		[MP3]		= "mp3",
@@ -264,4 +265,16 @@ fileext(AFile *f)
 		return formatext(f->actual);
 
 	return extension(f->name);
+}
+
+int
+prefoutfmt(int fmt)
+{
+	static int self[] = { FLAC };
+
+	for(int c = 0; c < sizeof(self); c++)
+		if(fmt == self[c])
+			return fmt;
+
+	return WAVE;
 }

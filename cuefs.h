@@ -96,7 +96,9 @@ char* formatext(int);
 char* fileext(AFile*);
 int actualformat(AFile*);
 
+int prefoutfmt(int);
+
 static char *Estub = "not yet";
 static char *Eunsupported = "unsupported format";
 
-void cuefsinit(Cuesheet*, char*);
+void cuefsinit(Cuesheet*, char*, int, int);

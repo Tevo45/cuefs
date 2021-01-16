@@ -1,5 +1,8 @@
 </$objtype/mkfile
 
+TARG=cuefs
+BIN=/$objtype/bin
+
 LFILES=\
 	cue.l
 
