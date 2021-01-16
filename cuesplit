@@ -1,0 +1,42 @@
+#!/bin/rc
+
+rfork en
+
+fn verbose {
+	if(! ~ $#verbose 0)
+		echo $*
+}
+
+flagfmt='D:debug, v:verbose, f:fmt outfmt, i:idx index'
+args='cuesheet'
+
+if(! ifs=() eval `{aux/getflags $*} || ! ~ $#* 1) {
+	aux/usage
+	exit usage
+}
+
+mtpt=/mnt/cuesplit-$pid
+sheet=$1
+
+wd=`{pwd}
+
+# TODO better flag passthrough
+flags=(-m $mtpt)
+
+if(! ~ $#debug 0)
+	flags=($flags -D)
+
+if(! ~ $#fmt 0)
+	flags=($flags -f $fmt)
+
+if(! ~ $#idx 0)
+	flags=($flags -i $idx)
+
+cuefs $flags $sheet
+cd $mtpt
+# dircp & friends don't really like the fact that we don't show
+# file sizes or something, so copy manually
+for(file in *) {
+	verbose $file
+	cat $file >$wd/$file
+}
