@@ -15,16 +15,12 @@ usage(void)
 int
 fmtarg(char *fmt)
 {
-	static char *fmts[] =
-	{
-		[WAVE]		= "wave",
-		[FLAC]		= "flac",
-		[BINARY]	= "pcm",
-	};
-
-	for(int c = 0; c < sizeof(fmts); c++)
-		if(cistrcmp(fmt, fmts[c]) == 0)
-			return c;
+	if(cistrcmp(fmt, "wave") == 0)
+		return WAVE;
+	if(cistrcmp(fmt, "flac") == 0)
+		return FLAC;
+	if(cistrcmp(fmt, "pcm") == 0)
+		return BINARY;
 
 	return UNKNOWN;
 }
