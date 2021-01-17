@@ -131,6 +131,7 @@ pipedec(AFile *f, double sec, vlong off, vlong end)
 	int fd[2], afd, devnull = -1;
 	char *dec;
 
+	/* FIXME check if decoder isn't nil */
 	dec = decoder[f->actual];
 
 	debug("decoding %s starting at %f\n", f->name, sec);
@@ -369,7 +370,7 @@ _flacenc(Entry *e, int infd, int outfd)
 			/* TODO better metadata handling */
 			char *argv[] =
 			{ 
-				enc, 
+				enc,
 				"-T", smprint("TITLE=%s", e->title),
 				"-T", smprint("ARTIST=%s", e->performer),
 				"-T", smprint("ALBUMARTIST=%s", e->sheet->performer),

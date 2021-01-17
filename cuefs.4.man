@@ -1,0 +1,65 @@
+.TH CUEFS 4
+.SH NAME
+cuefs \- cuesheet file system
+.SH SYNOPSYS
+.B cuefs
+[
+.B -Dv
+]
+[
+.B -m
+.I mtpt
+]
+[
+.B -f
+.I outfmt
+]
+[
+.B -i
+.I index
+]
+.I file
+.SH DESCRIPTION
+.I Cuefs
+serves tracks of one or more audio files, as described by the cuesheet specified by
+.IR file ,
+as a set of separate files under
+.I mtpt
+(defauts to
+.BR /mnt/cue ).
+The tracks are served in a flat directory structure with file names following the format "$number - $artist.$extension"; '/' in track names are replaced by '-'.
+It can handle OGG Vorbis, MP3, FLAC, WAVE and optionally OPUS and AAC (depending on the respective decoders being available) as inputs, and can output FLAC, WAVE or raw 44100Hz 16-bit 2 channel little-endian PCM data. By default, 
+.I cuefs
+tries to match the input format for output, falling back to WAVE if it can't be done. A specific output format can be specified with the
+.B -f
+flag; accepted values for
+.I outfmt
+include 'wave', 'flac' and 'pcm'. Only FLAC output contains any sort of metadata.
+.PP
+The
+.I -i
+flag specifies the preffered timestamp index to use when calculating the start and end of tracks; by convention, index 0 specifies the pre-gap of a track, while index 1 represents the actual start.
+.I Cuefs
+falls back to the first index, in case the specified index cannot be found on a specific track.
+.SH EXAMPLES
+Play the 2nd track specified on cuesheet camel.cue:
+.IP
+.EX
+cuefs camel.cue
+play /mnt/cue/02*
+.EE
+.SH SOURCE
+git://shithub.us/tevo/cuefs
+.SH SEE ALSO
+.IR cuesplit (1)
+.SH BUGS
+.IP •
+current treatment of lossy sources is less than ideal
+.IP •
+all audio data will get resampled to 44100Hz/16-bit/2 channels
+.IP •
+current treatment of metadata is less than ideal
+.IP •
+there's currently no way to split tracks without including the pregap either at the end of the last track or beggining of current one
+.IP •
+the cuesheet parser is incomplete

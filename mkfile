@@ -2,6 +2,14 @@
 
 TARG=cuefs
 BIN=/$objtype/bin
+RCBIN=/rc/bin
+
+RC=\
+	cuesplit
+
+MAN=\
+	4/cuefs	\
+	1/cuesplit
 
 LFILES=\
 	cue.l
@@ -24,3 +32,16 @@ OFILES=\
 </sys/src/cmd/mkone
 
 LFLAGS=-9
+
+install:V: ${RC:%=$RCBIN/%} ${MAN:%=/sys/man/%}
+
+# TODO better automate manpage installation, etc
+
+/sys/man/4/cuefs: cuefs.4.man
+	cp $prereq $target
+
+/sys/man/1/cuesplit: cuesplit.1.man
+	cp $prereq $target
+
+$RCBIN/%: %
+	cp $prereq $target
