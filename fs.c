@@ -353,6 +353,46 @@ polldec(Decoder *dec, int fd)
 	return pid;
 }
 
+static char**
+spush(int *sz, char **arr, char *str)
+{
+	/* maybe reallocating in chunks is a better idea? */
+	arr = erealloc(arr, sizeof(*arr) * ++(*sz));
+	arr[(*sz)-1] = str;
+	return arr;
+}
+
+static char**
+tagflag(int *sz, char **arr, char* tag)
+{
+	arr = spush(sz, arr, "-T");
+	arr = spush(sz, arr, tag);
+	return arr;
+}
+
+char**
+metaflags(char *enc, Entry *e)
+{
+	char **ret;
+	int c = 0;
+
+	ret = emalloc(sizeof(*ret));
+
+	ret = spush(&c, ret, enc);
+	ret = tagflag(&c, ret, esmprint("TITLE=%s", e->title));
+	ret = tagflag(&c, ret, esmprint("TRACKNUMBER=%d", e->index));
+	if(e->performer != nil)
+		ret = tagflag(&c, ret, esmprint("ARTIST=%s", e->performer));
+	if(e->sheet->performer != nil)
+		ret = tagflag(&c, ret, esmprint("ALBUMARTIST=%s", e->sheet->performer));
+	if(e->sheet->title != nil)
+		ret = tagflag(&c, ret, esmprint("ALBUM=%s", e->sheet->title));
+
+	ret = spush(&c, ret, nil);
+
+	return ret;
+}
+
 int
 _flacenc(Entry *e, int infd, int outfd)
 {
@@ -368,15 +408,7 @@ _flacenc(Entry *e, int infd, int outfd)
 		close(outfd);
 		{
 			/* TODO better metadata handling */
-			char *argv[] =
-			{ 
-				enc,
-				"-T", smprint("TITLE=%s", e->title),
-				"-T", smprint("ARTIST=%s", e->performer),
-				"-T", smprint("ALBUMARTIST=%s", e->sheet->performer),
-				"-T", smprint("ALBUM=%s", e->sheet->title),
-				nil
-			};
+			char **argv = metaflags(enc, e);
 			exec(enc, argv);
 			enc = smprint("/bin/%s", enc);
 			if(enc == nil)

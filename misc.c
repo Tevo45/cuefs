@@ -36,6 +36,21 @@ emalloc(ulong s)
 	return p;
 }
 
+char*
+esmprint(char *fmt, ...)
+{
+	char *str;
+	va_list args;
+
+	va_start(args, fmt);
+	str = vsmprint(fmt, args);
+	if(str == nil)
+		sysfatal("vsmprint: %r");
+	va_end(args);
+
+	return str;
+}
+
 void
 yyerror(char *str)
 {

@@ -11,6 +11,7 @@ void yyerror(char*);
 void* erealloc(void*, ulong);
 void* emallocz(ulong, int);
 void* emalloc(ulong);
+char* esmprint(char*, ...);
 
 char* setstr(char*, char**, char*);
 char* strreplace(char*, char, char);
