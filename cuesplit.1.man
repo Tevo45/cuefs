@@ -2,7 +2,7 @@
 .SH NAME
 cuesplit \- split cuesheet into separate tracks
 .SH SYNOPSYS
-.B cuefs
+.B cuesplit
 [
 .B -Dv
 ]
@@ -17,9 +17,7 @@ cuesplit \- split cuesheet into separate tracks
 .I cuesheet
 .SH DESCRIPTION
 .I Cuesplit
-uses
-.IR cuefs (4)
-to split a given cuesheet into a set of separate files in the current directory. The flags
+splits a given cuesheet into a set of separate files in the current directory. The flags
 .IR -D ,
 .I -f
 and
@@ -38,6 +36,6 @@ cuesplit camel.cue
 .SH SOURCE
 git://shithub.us/tevo/cuefs
 .SH SEE ALSO
-.IR cuesplit (1)
+.IR cuefs (4)
 .SH BUGS
 There's currently no way to specify a set of tracks (rather than the entire sheet) to be split off.
