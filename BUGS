@@ -3,7 +3,12 @@
 • everything will get resampled to 44100Hz/16bit/2channel
 • the codebase is a mess
 • reading concurrently from the same fid might break decoding logic, or be unecessarily slow (does that ever happen?)
-• zuke causes wavserve to do a negative readdec() somehow
+• zuke with wav keeps requesting the file header at offsets 0, 4 and 8; never starts playing
 • some parser/cuefs behavior might be non-standard or undesirable
 	- for example, there's currently no way to split tracks without including the pregap either at the end of the last track or beggining of current one
 • parser is incomplete
+• splitting tracks from → to the same format could some times be done more efficiently, skipping the decode (and resample) → encode process; this could be especially beneficial to lossy formats since there would be no reencoding.
+• some cuesheets have metadata (that would otherwise have nowhere to be in the sheet) stored in comments, in a somewhat semistandard manner, i.e.
+		REM GENRE "Progressive Rock"
+		REM DATE 2002
+	it probably wouldn't hurt to try parsing some of those; not a high priority at the moment

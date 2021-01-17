@@ -284,22 +284,31 @@ wavserve(Entry *e, Req *r)
 {
 	Wavehdr hdr;
 	Decoder *dec;
-	ulong offset, count, hcount;
+	long offset, count, hcount;
 
 	offset = r->ifcall.offset;
 	count = r->ifcall.count;
 
 	hcount = 0;
 
+	debug("wavserve: count = %ld, offset = %ld, r->ofcall.count = %ld", 
+		count, offset, r->ofcall.count);
+
 	/* 44 == start of pcm data */
 	if(offset < 44)
 	{
 		hcount = 44 - offset;
+		if(count < hcount)
+			hcount = count;
 		count -= hcount;
-		offset = 0;
-		fillwavehdr(&hdr, 2, 44100, 16, count);
-		memcpy(r->ofcall.data, &hdr, hcount);
+		fillwavehdr(&hdr, 2, 44100, 16, entrylen(e));
+		memcpy(r->ofcall.data, &hdr+offset, hcount);
+		r->ofcall.count += hcount;
+		offset = 44;
 	}
+
+	debug("; after header: count = %ld, hcount = %ld, offset = %ld, r->ofcall.count = %ld\n",
+		count, hcount, offset, r->ofcall.count);
 
 	if(count == 0)
 	{
@@ -308,7 +317,7 @@ wavserve(Entry *e, Req *r)
 	}
 
 	dec = reqdec(e, r, offset);
-	r->ofcall.count = readdec(dec, r->ofcall.data+hcount, count);
+	r->ofcall.count += readdec(dec, r->ofcall.data+hcount, count);
 	respond(r, nil);
 }
 
