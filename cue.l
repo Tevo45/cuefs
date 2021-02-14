@@ -4,6 +4,8 @@
 
 %}
 
+%a 4096
+
 %s MCNNO
 %%
 \".*\"			{
@@ -24,6 +26,13 @@
 					yylval.str = strdup(yytext); 
 					BEGIN(INITIAL);
 					return MCN; 
+				}
+
+
+[A-Z][A-Z][A-Z][A-Z][A-Z][0-9][0-9][0-9][0-9][0-9][0-9][0-9]	{	/* FIXME this is ridiculous, but [A-Z]{5}[0-9]{7} just refuses to work */
+					yylval.str = strdup(yytext);
+					BEGIN(INITIAL);
+					return ISRCCODE;
 				}
 
 [0-9]+			{

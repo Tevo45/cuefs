@@ -1,6 +1,6 @@
 
 extern char *fname;
-extern int infd;
+extern int infd, outfd;
 
 /* lex/yacc */
 int yylex(void);
@@ -75,7 +75,7 @@ struct Entry
 	Start *starts;
 	AFile *file;
 	int index, flags;
-	char *title, *performer;
+	char *title, *performer, *isrc;
 	Entry *next;
 };
 
@@ -95,6 +95,7 @@ double of2sec(uint, uint, uint, vlong);
 Cuesheet* newsheet(void);
 void freesheet(Cuesheet*);
 
+void setisrc(Cuesheet*, char*);
 void setflags(Cuesheet*, int);
 void setmcn(Cuesheet*, char*);
 void setperformer(Cuesheet*, char*);

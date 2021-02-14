@@ -59,6 +59,7 @@ freesheet(Cuesheet *s)
 			free(st);
 		}
 		free(e->title);
+		free(e->isrc);
 		/*
 		 * TODO maybe we should keep track of every performer in
 		 * the Cuesheet, even if they're "song only" performers?
@@ -163,11 +164,19 @@ setflags(Cuesheet *c, int flags)
 }
 
 void
+setisrc(Cuesheet *c, char *isrc)
+{
+	if(c->curentry == nil)
+		parserfatal("flag outside of track");
+	c->curentry->isrc = isrc;
+}
+
+void
 addfile(Cuesheet *c, char *name, int format)
 {
 	AFile *new;
 
-	new = emalloc(sizeof(*new));
+	new = emallocz(sizeof(*new), 1);
 	new->name	= strdup(name);
 	new->type	= format;
 	new->actual	= actualformat(new);

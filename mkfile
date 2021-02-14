@@ -31,7 +31,8 @@ OFILES=\
 
 </sys/src/cmd/mkone
 
-LFLAGS=-9
+LFLAGS=-9n
+YFLAGS=$YFLAGS
 
 install:V: ${RC:%=$RCBIN/%} ${MAN:%=/sys/man/%}
 

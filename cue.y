@@ -18,7 +18,7 @@ Cuesheet *cursheet;
 }
 
 %token <i>   INTEGER
-%token <str> STRING MCN
+%token <str> STRING MCN ISRCCODE
 
 %type <i>    filetype
 %type <time> timestamp
@@ -26,7 +26,7 @@ Cuesheet *cursheet;
 
 %token CATALOG CDTEXTFILE FLAGS DCP CHAN4 PREEMPH SCMS INDEX
 %token ISRC PERFORMER POSTGAP PREGAP SONGWRITER TITLE TRACK
-%token FILE FWAVE FMP3 FAIFF FBINARY FMOTOROLA AUDIO MCN
+%token FILE FWAVE FMP3 FAIFF FBINARY FMOTOROLA AUDIO MCN ISRCCODE
 
 %%
 cuesheet:
@@ -41,6 +41,7 @@ expr:
 	| INDEX INTEGER timestamp	{ settimestamp(cursheet, $2, $3); }
 	| CATALOG MCN				{ setmcn(cursheet, $2); }
 	| FLAGS flags				{ setflags(cursheet, $2); }
+	| ISRC ISRCCODE			{ setisrc(cursheet, $2); }
 	;
 
 flags:						{ $$ = 0; }

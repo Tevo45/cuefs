@@ -53,6 +53,8 @@ main(int argc, char **argv)
 		usage();
 	} ARGEND;
 
+	outfd = 1;
+
 	if(argc > 1)
 		usage();
 
