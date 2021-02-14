@@ -1,10 +1,12 @@
-#!/bin/rc
+#!/bin/rc -e
 
 rfork en
 
 fn verbose {
 	if(! ~ $#verbose 0)
 		echo $*
+	if not
+		status=()
 }
 
 flagfmt='D:debug, v:verbose, f:fmt outfmt, i:idx index'
