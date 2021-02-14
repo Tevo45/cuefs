@@ -22,6 +22,7 @@ Cuesheet *cursheet;
 
 %type <i>    filetype
 %type <time> timestamp
+%type <i> flag flags
 
 %token CATALOG CDTEXTFILE FLAGS DCP CHAN4 PREEMPH SCMS INDEX
 %token ISRC PERFORMER POSTGAP PREGAP SONGWRITER TITLE TRACK
@@ -39,6 +40,18 @@ expr:
 	| TRACK INTEGER AUDIO		{ addnewtrack(cursheet, $2); }
 	| INDEX INTEGER timestamp	{ settimestamp(cursheet, $2, $3); }
 	| CATALOG MCN				{ setmcn(cursheet, $2); }
+	| FLAGS flags				{ setflags(cursheet, $2); }
+	;
+
+flags:						{ $$ = 0; }
+	| flags flag				{ $$ = $1 | $2; }
+	;
+
+flag:
+	DCP						{ $$ = FLAG_DCP; }
+	| CHAN4					{ $$ = FLAG_4CH; }
+	| PREEMPH				{ $$ = FLAG_PRE; }
+	| SCMS					{ $$ = FLAG_SCMS; }
 	;
 
 filetype:

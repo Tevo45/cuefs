@@ -155,6 +155,14 @@ setmcn(Cuesheet *c, char *mcn)
 }
 
 void
+setflags(Cuesheet *c, int flags)
+{
+	if(c->curentry == nil)
+		parserfatal("flag outside of track");
+	c->curentry->flags = flags;
+}
+
+void
 addfile(Cuesheet *c, char *name, int format)
 {
 	AFile *new;
