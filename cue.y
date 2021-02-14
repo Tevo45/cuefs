@@ -44,6 +44,7 @@ expr:
 	| ISRC ISRCCODE			{ setisrc(cursheet, $2); }
 	| PREGAP timestamp			{ setpregap(cursheet, $2); }
 	| POSTGAP timestamp		{ setpostgap(cursheet, $2); }
+	| SONGWRITER STRING		{ setsongwriter(cursheet, $2); }
 	;
 
 flags:						{ $$ = 0; }

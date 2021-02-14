@@ -60,10 +60,8 @@ freesheet(Cuesheet *s)
 		}
 		free(e->title);
 		free(e->isrc);
-		/*
-		 * TODO maybe we should keep track of every performer in
-		 * the Cuesheet, even if they're "song only" performers?
-		 */
+		if(e->songwriter != s->songwriter)
+			free(e->songwriter);
 		if(e->performer != s->performer)
 			free(e->performer);
 
@@ -81,6 +79,7 @@ freesheet(Cuesheet *s)
 
 	free(s->title);
 	free(s->performer);
+	free(s->songwriter);
 	free(s->mcn);
 
 	free(s);
@@ -130,6 +129,23 @@ setperformer(Cuesheet *c, char *artist)
 		if(c->curentry->performer != c->performer)
 			free(c->curentry->performer);
 		c->curentry->performer = artist;
+	}
+}
+
+void
+setsongwriter(Cuesheet *c, char *composer)
+{
+	composer = strdup(composer);
+	if(c->curentry == nil)
+	{
+		free(c->songwriter);
+		c->songwriter = composer;
+	}
+	else
+	{
+		if(c->curentry->songwriter != c->songwriter)
+			free(c->curentry->songwriter);
+		c->curentry->songwriter = composer;
 	}
 }
 
@@ -215,6 +231,7 @@ addnewtrack(Cuesheet *c, int i)
 	new->sheet = c;
 	new->file = c->curfile;
 	new->performer = c->performer;
+	new->songwriter = c->songwriter;
 	new->index = i;
 
 	if(c->entries == nil)

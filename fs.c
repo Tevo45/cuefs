@@ -392,6 +392,8 @@ metaflags(char *enc, Entry *e)
 	ret = tagflag(&c, ret, esmprint("TRACKNUMBER=%d", e->index));
 	if(e->performer != nil)
 		ret = tagflag(&c, ret, esmprint("ARTIST=%s", e->performer));
+	if(e->songwriter != nil)
+		ret = tagflag(&c, ret, esmprint("COMPOSER=%s", e->songwriter));
 	if(e->isrc != nil)
 		ret = tagflag(&c, ret, esmprint("ISRC=%s", e->isrc));
 	if(e->sheet->performer != nil)

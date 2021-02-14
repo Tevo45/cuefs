@@ -75,14 +75,14 @@ struct Entry
 	Start *starts;
 	AFile *file;
 	int index, flags;
-	char *title, *performer, *isrc;
+	char *title, *performer, *songwriter, *isrc;
 	Timestamp pregap, postgap;
 	Entry *next;
 };
 
 struct Cuesheet
 {
-	char *title, *performer, *mcn;
+	char *title, *performer, *songwriter, *mcn;
 	AFile *files, *curfile;
 	Entry *entries, *curentry;
 };
@@ -102,6 +102,7 @@ void setisrc(Cuesheet*, char*);
 void setflags(Cuesheet*, int);
 void setmcn(Cuesheet*, char*);
 void setperformer(Cuesheet*, char*);
+void setsongwriter(Cuesheet*, char*);
 void settitle(Cuesheet*, char*);
 void addfile(Cuesheet*, char*, int);
 void addnewtrack(Cuesheet*, int);
