@@ -51,11 +51,20 @@ esmprint(char *fmt, ...)
 	return str;
 }
 
+/* it's a mess */
+
 void
-yyerror(char *str)
+yywarn(char *str)
 {
 	extern int yylineno;
 	fprint(2, "%s:%d: %s\n", fname, yylineno, str);
+}
+
+void
+yyerror(char *str)
+{
+	yywarn(str);
+	exits(str);
 }
 
 char*
@@ -84,7 +93,7 @@ parserwarn(char *fmt, ...)
 
 	va_start(args, fmt);
 	str = vsmprint(fmt, args);
-	yyerror(str);
+	yywarn(str);
 	free(str);
 	va_end(args);
 }
@@ -97,7 +106,7 @@ parserfatal(char *fmt, ...)
 
 	va_start(args, fmt);
 	str = vsmprint(fmt, args);
-	yyerror(str);
+	yywarn(str);
 	free(str);
 	va_end(args);
 	exits("cantparse");
