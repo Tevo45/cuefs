@@ -167,8 +167,24 @@ void
 setisrc(Cuesheet *c, char *isrc)
 {
 	if(c->curentry == nil)
-		parserfatal("flag outside of track");
+		parserfatal("isrc outside of track");
 	c->curentry->isrc = isrc;
+}
+
+void 
+setpregap(Cuesheet* c, Timestamp pre)
+{
+	if(c->curentry == nil)
+		parserfatal("pregap outside of track");
+	c->curentry->pregap = pre;
+}
+
+void 
+setpostgap(Cuesheet* c, Timestamp post)
+{
+	if(c->curentry == nil)
+		parserfatal("postgap outside of track");
+	c->curentry->postgap = post;
 }
 
 void

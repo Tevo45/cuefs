@@ -42,6 +42,8 @@ expr:
 	| CATALOG MCN				{ setmcn(cursheet, $2); }
 	| FLAGS flags				{ setflags(cursheet, $2); }
 	| ISRC ISRCCODE			{ setisrc(cursheet, $2); }
+	| PREGAP timestamp			{ setpregap(cursheet, $2); }
+	| POSTGAP timestamp		{ setpostgap(cursheet, $2); }
 	;
 
 flags:						{ $$ = 0; }

@@ -76,6 +76,7 @@ struct Entry
 	AFile *file;
 	int index, flags;
 	char *title, *performer, *isrc;
+	Timestamp pregap, postgap;
 	Entry *next;
 };
 
@@ -95,6 +96,8 @@ double of2sec(uint, uint, uint, vlong);
 Cuesheet* newsheet(void);
 void freesheet(Cuesheet*);
 
+void setpregap(Cuesheet*, Timestamp);
+void setpostgap(Cuesheet*, Timestamp);
 void setisrc(Cuesheet*, char*);
 void setflags(Cuesheet*, int);
 void setmcn(Cuesheet*, char*);
