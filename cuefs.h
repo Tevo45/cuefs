@@ -24,6 +24,7 @@ void parserwarn(char*, ...);
 void parserfatal(char*, ...);
 
 void debug(char*, ...);
+void trace(char*, ...);
 
 extern int verbosity;
 

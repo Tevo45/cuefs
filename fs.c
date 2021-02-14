@@ -186,7 +186,7 @@ readdec(Decoder *dec, void *buf, long count)
 {
 	long ret, n;
 
-	debug("readdec: decoder offset = %lld, decoder end = %lld, count = %ld\n",
+	trace("readdec: decoder offset = %lld, decoder end = %lld, count = %ld\n",
 		dec->curoff, dec->end, count);
 
 	/* dec->end == 0 means "there's no end, read what you can" */
@@ -197,7 +197,7 @@ readdec(Decoder *dec, void *buf, long count)
 			count += n;
 	}
 
-	debug("readdec: reading %ld bytes from pid %d\n", count, dec->pid);
+	trace("readdec: reading %ld bytes from pid %d\n", count, dec->pid);
 
 	ret = read(dec->fd, buf, count);
 	dec->curoff += ret;
@@ -346,10 +346,10 @@ polldec(Decoder *dec, int fd)
 	case 0:
 		for(int n = -1; n != 0;)
 		{
-			debug("polldec: reading %d from decoder\n", sizeof(buf));
+			trace("polldec: reading %d from decoder\n", sizeof(buf));
 			n = readdec(dec, buf, sizeof(buf));
 			write(fd, buf, sizeof(buf));
-			debug("polldec: writing %d into poll pipe\n", n);
+			trace("polldec: writing %d into poll pipe\n", n);
 		}
 		debug("polldec: decoder finished, exiting\n");
 		closedec(dec);
@@ -446,7 +446,7 @@ flacenc(Entry *e)
 	if(pipe(encfd) < 0 || pipe(decfd) < 0)
 		sysfatal("flacenc: pipe: %r");
 
-	enc = emalloc(sizeof(*enc));
+	enc = emallocz(sizeof(*enc), 1);
 	enc->cleanup = (void(*)(void*))closeflac;
 	enc->fd = encfd[0];
 	enc->dec = pipedec(e->file, t2sec(*prefindex(e)), 0, entrylen(e));
@@ -462,7 +462,7 @@ readflac(Flacenc *enc, void *buf, long count)
 	long ret;
 
 	debug("readflac: reading %ld bytes from poll pipe\n", count);
-	ret = read(enc->fd, buf, count);
+	ret = readn(enc->fd, buf, count);
 	enc->curoff += ret;
 
 	return ret;
@@ -474,9 +474,12 @@ seekflac(Flacenc *enc, vlong offset)
 	char buf[4096];
 
 	if(offset < enc->curoff)
+	{
+		debug("seekflac: tried to seek to %lld but we're on %lld, refusing\n", offset, enc->curoff);
 		return enc->curoff;
+	}
 
-	debug("seekflac: %lld → %lld\n", offset);
+	debug("seekflac: %lld → %lld\n", enc->curoff, offset);
 
 	for(int todo; (todo = enc->curoff - offset) == 0;)
 	{

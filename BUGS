@@ -13,3 +13,4 @@
 		REM DATE 2002
 	it probably wouldn't hurt to try parsing some of those; not a high priority at the moment
 • cuefs does not respect PREGAP and POSTGAP tags on cuesheets
+• zuke's mkplist dislikes cuefs, somehow (trying to mkplist on a cuefs mountpoint doesn't even generate 9p rpcs, something's really wrong)

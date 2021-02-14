@@ -46,3 +46,12 @@ install:V: ${RC:%=$RCBIN/%} ${MAN:%=/sys/man/%}
 
 $RCBIN/%: %
 	cp $prereq $target
+
+acid:V: debug.$objtype.acid
+clean nuke:V: cleanacid
+
+cleanacid:V:
+	rm -f debug.^($CPUS)^.acid
+
+debug.$objtype.acid: $HFILES
+	$CC -a *.c >$target

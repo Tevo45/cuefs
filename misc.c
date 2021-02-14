@@ -117,6 +117,19 @@ debug(char *fmt, ...)
 {
 	va_list args;
 
+	if(verbosity < 2)
+		return;
+
+	va_start(args, fmt);
+	vfprint(2, fmt, args);
+	va_end(args);
+}
+
+void
+trace(char *fmt, ...)
+{
+	va_list args;
+
 	if(verbosity < 3)
 		return;
 
