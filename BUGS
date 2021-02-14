@@ -7,7 +7,6 @@
 • zuke with wav keeps requesting the file header at offsets 0, 4 and 8; never starts playing
 • some parser/cuefs behavior might be non-standard or undesirable
 	- for example, there's currently no way to split tracks without including the pregap either at the end of the last track or beggining of current one
-• parser is incomplete
 • splitting tracks from → to the same format could some times be done more efficiently, skipping the decode (and resample) → encode process; this could be especially beneficial to lossy formats since there would be no reencoding.
 • some cuesheets have metadata (that would otherwise have nowhere to be in the sheet) stored in comments, in a somewhat semistandard manner, i.e.
 		REM GENRE "Progressive Rock"
