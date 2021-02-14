@@ -416,7 +416,6 @@ _flacenc(Entry *e, int infd, int outfd)
 		close(infd);
 		close(outfd);
 		{
-			/* TODO better metadata handling */
 			char **argv = metaflags(enc, e);
 			exec(enc, argv);
 			enc = smprint("/bin/%s", enc);

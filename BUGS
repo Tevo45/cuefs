@@ -3,6 +3,7 @@
 • everything will get resampled to 44100Hz/16bit/2channel
 • the codebase is a mess
 • reading concurrently from the same fid might break decoding logic, or be unecessarily slow (does that ever happen?)
+• the parser might be leaking memory (it strdup()s the strings before passing to yacc, but we strdup() some of them again when setting the sheet fields)
 • zuke with wav keeps requesting the file header at offsets 0, 4 and 8; never starts playing
 • some parser/cuefs behavior might be non-standard or undesirable
 	- for example, there's currently no way to split tracks without including the pregap either at the end of the last track or beggining of current one

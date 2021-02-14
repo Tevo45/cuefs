@@ -18,14 +18,14 @@ Cuesheet *cursheet;
 }
 
 %token <i>   INTEGER
-%token <str> STRING
+%token <str> STRING MCN
 
 %type <i>    filetype
 %type <time> timestamp
 
 %token CATALOG CDTEXTFILE FLAGS DCP CHAN4 PREEMPH SCMS INDEX
 %token ISRC PERFORMER POSTGAP PREGAP SONGWRITER TITLE TRACK
-%token FILE FWAVE FMP3 FAIFF FBINARY FMOTOROLA AUDIO
+%token FILE FWAVE FMP3 FAIFF FBINARY FMOTOROLA AUDIO MCN
 
 %%
 cuesheet:
@@ -38,6 +38,7 @@ expr:
 	| FILE STRING filetype		{ addfile(cursheet, $2, $3); }
 	| TRACK INTEGER AUDIO		{ addnewtrack(cursheet, $2); }
 	| INDEX INTEGER timestamp	{ settimestamp(cursheet, $2, $3); }
+	| CATALOG MCN				{ setmcn(cursheet, $2); }
 	;
 
 filetype:

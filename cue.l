@@ -4,6 +4,7 @@
 
 %}
 
+%s MCNNO
 %%
 \".*\"			{
 					yylval.str = strdup(yytext+1);
@@ -16,12 +17,21 @@
 					return STRING;
 				}
 
+<MCNNO>[0-9]+ 	{ 
+					int len = strlen(yytext);
+					if(len > 13)
+						parserfatal("UPC/EAN code cannot be larger than 13 characters");
+					yylval.str = strdup(yytext); 
+					BEGIN(INITIAL);
+					return MCN; 
+				}
+
 [0-9]+			{
 					yylval.i = atoi(yytext);
 					return INTEGER;
 				}
 
-"CATALOG"		return CATALOG;
+"CATALOG"		{ BEGIN(MCNNO); return CATALOG; }
 "CDTEXTFILE"	return CDTEXTFILE;
 "FILE"			return FILE;
 "FLAGS"			return FLAGS;

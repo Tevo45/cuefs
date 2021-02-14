@@ -80,6 +80,7 @@ freesheet(Cuesheet *s)
 
 	free(s->title);
 	free(s->performer);
+	free(s->mcn);
 
 	free(s);
 }
@@ -145,6 +146,12 @@ settitle(Cuesheet *c, char *title)
 		free(c->curentry->title);
 		c->curentry->title = title;
 	}
+}
+
+void
+setmcn(Cuesheet *c, char *mcn)
+{
+	c->mcn = mcn;
 }
 
 void

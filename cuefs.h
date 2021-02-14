@@ -73,7 +73,7 @@ struct Entry
 
 struct Cuesheet
 {
-	char *title, *performer;
+	char *title, *performer, *mcn;
 	AFile *files, *curfile;
 	Entry *entries, *curentry;
 };
@@ -87,6 +87,7 @@ double of2sec(uint, uint, uint, vlong);
 Cuesheet* newsheet(void);
 void freesheet(Cuesheet*);
 
+void setmcn(Cuesheet*, char*);
 void setperformer(Cuesheet*, char*);
 void settitle(Cuesheet*, char*);
 void addfile(Cuesheet*, char*, int);
