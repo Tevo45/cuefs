@@ -259,7 +259,7 @@ formatext(int f)
 		[OGG]		= "ogg",
 		[OPUS]		= "opus",
 		[AAC]		= "aac",
-		[MOTOROLA]	= ""		/* not sure */
+		[MOTOROLA]	= "bin"
 	};
 
 	return tab[f];

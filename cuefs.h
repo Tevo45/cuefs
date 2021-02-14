@@ -31,7 +31,7 @@ extern int verbosity;
 
 enum
 {
-	WAVE, MP3, AIFF, BINARY, MOTOROLA,
+	WAVE, MP3, AIFF, BINARY /* PCM LE */, MOTOROLA /* PCM BE */,
 	/**/
 	AAC, FLAC, OGG, OPUS, UNKNOWN
 };
