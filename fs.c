@@ -139,7 +139,7 @@ pipedec(AFile *f, double sec, vlong off, vlong end)
 	if(pipe(fd) < 0)
 		sysfatal("pipedec: can't decode: pipe: %r");
 
-	ret = emalloc(sizeof(*ret));
+	ret = emallocz(sizeof(*ret), 1);
 	ret->cleanup = (void(*)(void*))closedec;
 	ret->fd = fd[0];
 	ret->curoff = off;
@@ -385,7 +385,7 @@ metaflags(char *enc, Entry *e)
 	char **ret;
 	int c = 0;
 
-	ret = emalloc(sizeof(*ret));
+	ret = emallocz(sizeof(*ret), 1);
 
 	ret = spush(&c, ret, enc);
 	ret = tagflag(&c, ret, esmprint("TITLE=%s", e->title));
@@ -576,7 +576,7 @@ cuefsinit(Cuesheet *sheet, char *mtpt, int outfmt, int prefidx)
 	Fsprops *p;
 	char *s;
 
-	p = emalloc(sizeof(*p));
+	p = emallocz(sizeof(*p), 1);
 	p->sheet	= sheet;
 	p->outfmt	= (outfmt == -1) ? prefoutfmt(sheet->files->actual) : outfmt;
 	p->prefidx	= prefidx;
