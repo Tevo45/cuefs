@@ -476,7 +476,7 @@ seekflac(Flacenc *enc, vlong offset)
 	if(offset < enc->curoff)
 	{
 		debug("seekflac: tried to seek to %lld but we're on %lld, refusing\n", offset, enc->curoff);
-		return enc->curoff;
+		return -1;
 	}
 
 	debug("seekflac: %lld → %lld\n", enc->curoff, offset);
@@ -503,7 +503,17 @@ flacserve(Entry *e, Req *r)
 	}
 
 	if(enc->curoff != r->ifcall.offset)
-		seekflac(enc, r->ifcall.offset);
+	if(seekflac(enc, r->ifcall.offset) < 0)
+	{
+		debug("flacserve: cannot seek, discarding decoder and retrying\n");
+		closeflac(enc);
+		enc = r->fid->aux = flacenc(e);
+		if(seekflac(enc, r->ifcall.offset) < 0)
+		{
+			respond(r, "cannot seek");
+			return;
+		}
+	}
 
 	r->ofcall.count = readflac(enc, r->ofcall.data, r->ifcall.count);
 	respond(r, nil);
